@@ -1,0 +1,41 @@
+#this is a test file to demonstrate how the pytorch library works. this example creates a random model, a random tensor x with 64 elements, and is trained to convert x into the tensor [1,2,3,4].
+
+
+import torch
+from torch import nn
+
+#set up model parameters
+dtype = torch.float32 #define tensor's data type. here, we are using 32 bit floats, since that is what most gpu's are designed for.
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #tries to run on the primary cuda gpu, but falls back to cpu if necessary
+torch.set_default_device(device)
+learning_rate = 1e-3
+    
+#create model, 64 in, 4 out
+model = torch.nn.Sequential(
+    nn.Linear(64,32),
+    nn.Sigmoid(),
+    nn.Linear(32,16),
+    nn.Sigmoid(),
+    nn.Linear(16,8),
+    nn.Sigmoid(),
+    nn.Linear(8,4)
+    )
+
+loss_function = torch.nn.MSELoss(reduction='sum') #mean square error loss function- determines how far off model is from desired outcome
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate) #optimizer- could use stochastic gradiant descent for this example, but adam is a good balance of speed and accuracy for working on bigger models.
+
+
+x = torch.rand(64)
+y = torch.tensor([1,2,3,4], dtype=dtype)
+#torch.no_grad() means gradients will NOT be calculated during tensor operations. unneccessary here, but gradient calculation is expensive and could result in a performance hit when doing larger operations where gradients are not being used for training.
+with torch.no_grad(): print(model(x)) #before
+
+#training- 1000 iterations
+for i in range(1000):
+    prediction = model(x) #trial
+    loss = loss_function(prediction, y) #error
+    optimizer.zero_grad() #reset tensor gradients
+    loss.backward() #calculate tensor gradients
+    optimizer.step() #alter weights
+
+with torch.no_grad(): print(model(x)) #after
