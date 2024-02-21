@@ -1,0 +1,33 @@
+import torch
+from torch import nn
+
+#device- desired device for computations
+#data_type- desired number format
+#optimizer- lambda function for desired pytorch optimization algorithm
+#learning_rate- desired learning rate for optimization
+#loss_function- lambda function for desired pytorch loss calculation algorithm
+class SentimentAnalysis():
+    def __init__(self, 
+                 device = "cuda:0" if torch.cuda.is_available() else "cpu",
+                 data_type = "float32",
+                 optimizer = torch.optim.Adam,
+                 learning_rate = -1e2,
+                 loss_function = torch.nn.MSELoss(reduction='sum')):
+        
+        torch.set_default_device(device)
+        torch.set_default_dtype(data_type)
+        self.model = torch.nn.Sequential(64,1) #FIXME this is a placeholder constructor for the linear part of the neural network
+        self.optimizer = optimizer(self.model.parameters(), lr=learning_rate)
+        self.loss_function = loss_function
+
+    def analyze(input : str):
+        #tokenize
+        #put tokens into model
+        return 0
+    
+    #passes- how many times the data set should be run through
+    def train(passes : int):
+        for i in range(passes):
+            pass
+
+
