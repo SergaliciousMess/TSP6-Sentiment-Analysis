@@ -1,0 +1,26 @@
+@startuml
+actor User as u
+
+rectangle SentimentAnalysis {
+usecase "Analyze message" as am
+usecase "Train model" as tm
+usecase "Add message to training data" as amt
+usecase "Create new model" as cm
+usecase "Load model" as lm
+usecase "Flag incorrect prediction" as flag
+}
+
+u -- am
+u -- tm
+u -- amt
+u -- cm
+u -- lm
+u -- flag
+
+tm --> am : Includes
+tm --> lm : Includes
+
+flag --> am : Includes
+flag --> amt : Includes
+
+@enduml
