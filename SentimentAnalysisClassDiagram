@@ -1,0 +1,10 @@
+@startuml
+
+Class SentimentAnalysis{
+analyzeMessage()
+train()
+model
+nlp
+}
+
+@enduml
