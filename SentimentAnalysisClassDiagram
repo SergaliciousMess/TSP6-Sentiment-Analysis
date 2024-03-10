@@ -1,10 +1,28 @@
 @startuml
 
 Class SentimentAnalysis{
-analyzeMessage()
-train()
-model
-nlp
+analyzeMessage(message)
+train(testing_data, training_data)
+build_vocab(data)
+tokenize(one_word_string)
+text_to_numerical(string_list)
+
+
+linear_model
+natural_language_processor as nlp
 }
 
+Class SAUI {
+display_options()
+create_new_model(model_parameters)
+save_model()
+load_model()
+train()
+analyze(message)
+sentiment_analysis_model
+training_data
+testing_data
+}
+
+SAUI -* SentimentAnalysis : has 1
 @enduml
