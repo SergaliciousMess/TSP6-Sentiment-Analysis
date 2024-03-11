@@ -1,0 +1,43 @@
+@startuml
+actor User
+' The only difference between actor
+'and participant is the drawing
+participant SAUI
+participant "SentimentAnalysis" as Sa
+
+activate SAUI
+User->SAUI: display_options() 
+SAUI->User: display
+
+
+User->SAUI: create_new_model(model_parameters)
+
+User->SAUI: save_model()
+SAUI->User: saved
+
+User->SAUI: load_model()
+SAUI->User: loaded
+
+User->SAUI: train()
+
+User->SAUI: analyze(message)
+deactivate SAUI
+
+activate Sa
+User->Sa: analyzeMessage(message)
+Sa->User: analysis results
+
+User->Sa: train(testing_data, training_data)
+Sa->User: training results
+
+User->Sa: build_vocab(data)
+
+User->Sa: tokenize(one_word_string)
+
+User->Sa: text_to_numerical(string_list)
+
+
+
+deactivate Sa
+
+@enduml
