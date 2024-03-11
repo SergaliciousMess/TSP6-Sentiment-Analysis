@@ -50,10 +50,11 @@ class SentimentAnalysis():
         
         # Define the nn architecture
         self.model = nn.Sequential(
-            nn.Linear(64, 1),  # FIXME this is a placeholder constructor for the linear part of the neural network; Linear layer with input size 64 and output size 1
+            nn.Linear(64, 1),   # FIXME this is a placeholder constructor for the linear part of the neural network;
+                                #Linear layer with input size 64 and output size 1
             nn.Sigmoid()       # Sigmoid activation function for binary classification
         )
-        
+        self.nlp = nlp
         # Initialize optimizer and loss function
         self.optimizer = optimizer(self.model.parameters(), lr=learning_rate)
         self.loss_function = loss_function
@@ -62,7 +63,7 @@ class SentimentAnalysis():
         # Use spaCy for advanced tokenization
         doc = self.nlp(text)
         
-        # Extract tokens after applying additional processing
+        # Extract tokens after applying additional proc essing
         tokens = [token.lemma_.lower().strip() for token in doc if not token.is_stop and not token.is_punct]
         
         return tokens
