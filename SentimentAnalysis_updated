@@ -38,7 +38,8 @@ from torchtext.data.functional import to_map_style_dataset
 
 class SentimentAnalysis():
     def __init__(self, 
-                 embed_size,
+                 embed_size = 64,
+                 messages_iter = [],
                  device="cuda:0" if torch.cuda.is_available() else "cpu",
                  data_type=torch.float32,
                  optimizer=torch.optim.Adam,
@@ -50,17 +51,20 @@ class SentimentAnalysis():
         torch.set_default_device(device)
         torch.set_default_dtype(data_type)
         
-        #self.bag = nn.EmbeddingBag(embedding_dim=embed_size) TODO initialize embedding bag
+        self.nlp = nlp
+        self.build_vocab(messages_iter)
+        self.bag = nn.EmbeddingBag(num_embeddings=len(nlp.vocab), embedding_dim=embed_size ) #TODO initialize embedding bag
+
 
         # Define the nn architecture
-        self.model = nn.Sequential(
+        self.linear = nn.Sequential(
             nn.Linear(embed_size, 1),   # FIXME this is a placeholder constructor for the linear part of the neural network;
                                 #Linear layer with input size 64 and output size 1
             nn.Sigmoid()       # Sigmoid activation function for binary classification
         )
-        self.nlp = nlp
+
         # Initialize optimizer and loss function
-        self.optimizer = optimizer(self.model.parameters(), lr=learning_rate)
+        self.optimizer = optimizer(self.linear.parameters(), lr=learning_rate)
         self.loss_function = loss_function
 
     def tokenize(self, text):
@@ -74,10 +78,7 @@ class SentimentAnalysis():
 
     def build_vocab(self, data):
         # Build vocabulary from the tokenized data
-        unlabeled_data = []
-        for _, t in data:
-            unlabeled_data.append(t)
-        vocab = build_vocab_from_iterator(map(self.tokenize, unlabeled_data), specials=["<unk>"])
+        vocab = build_vocab_from_iterator(map(self.tokenize, data), specials=["<unk>"])
         vocab.set_default_index(vocab["<unk>"])
         return vocab
     
@@ -100,7 +101,7 @@ class SentimentAnalysis():
         input_tensor = torch.tensor(input_array)  
         
         # Forward pass through the model
-        output = self.model(input_tensor)
+        output = self.model(input_tensor) #FIXME
         
         # Performing any post-processing to convert output probabilities to sentiment labels
         
@@ -130,7 +131,7 @@ class SentimentAnalysis():
                 self.optimizer.zero_grad()
 
                 # Forward pass
-                outputs = self.model(inputs)
+                outputs = self.model(inputs) #FIXME
                 
                 # Compute the loss
                 loss = self.loss_function(outputs, labels)
@@ -149,14 +150,13 @@ if __name__ == "__main__":
     #test_iter = AG_NEWS(split='test')
     train_iter = [(1,"Hello"),(0,"Boo"),(1,"Thanks")]
     test_iter = [(1,"Hi"),(0,"Ew"),(1,"Cool")]
+    messages = []
+    for _, t in test_iter:
+        messages.append(t)
 
     # Initialize SentimentAnalysis object
     print("initialize sentiment analysis model")
-    sentiment_analysis = SentimentAnalysis()
-
-    # Tokenize and build vocabulary
-    print("build vocab")
-    sentiment_analysis.build_vocab(train_iter)
+    sentiment_analysis = SentimentAnalysis(messages_iter=messages, device="cpu") #FIXME doesnt work on gpu
 
     # Convert data iterators to map-style datasets
     train_dataset = to_map_style_dataset(train_iter)
