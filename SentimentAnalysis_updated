@@ -29,6 +29,7 @@ from torchtext.vocab import build_vocab_from_iterator
 from torchtext.datasets import AG_NEWS # data placeholder, TODO: to be deleted or replaced later as seen fit
 from torchtext.data.functional import to_map_style_dataset
 
+#embed_size- size of linear layer and embedding bag
 #device- desired device for computations
 #data_type- desired number format
 #optimizer- lambda function for desired pytorch optimization algorithm
@@ -37,6 +38,7 @@ from torchtext.data.functional import to_map_style_dataset
 
 class SentimentAnalysis():
     def __init__(self, 
+                 embed_size,
                  device="cuda:0" if torch.cuda.is_available() else "cpu",
                  data_type=torch.float32,
                  optimizer=torch.optim.Adam,
@@ -48,9 +50,11 @@ class SentimentAnalysis():
         torch.set_default_device(device)
         torch.set_default_dtype(data_type)
         
+        #self.bag = nn.EmbeddingBag(embedding_dim=embed_size) TODO initialize embedding bag
+
         # Define the nn architecture
         self.model = nn.Sequential(
-            nn.Linear(64, 1),   # FIXME this is a placeholder constructor for the linear part of the neural network;
+            nn.Linear(embed_size, 1),   # FIXME this is a placeholder constructor for the linear part of the neural network;
                                 #Linear layer with input size 64 and output size 1
             nn.Sigmoid()       # Sigmoid activation function for binary classification
         )
@@ -70,7 +74,10 @@ class SentimentAnalysis():
 
     def build_vocab(self, data):
         # Build vocabulary from the tokenized data
-        vocab = build_vocab_from_iterator(map(self.tokenize, data), specials=["<unk>"])
+        unlabeled_data = []
+        for _, t in data:
+            unlabeled_data.append(t)
+        vocab = build_vocab_from_iterator(map(self.tokenize, unlabeled_data), specials=["<unk>"])
         vocab.set_default_index(vocab["<unk>"])
         return vocab
     
@@ -138,13 +145,17 @@ class SentimentAnalysis():
         
 if __name__ == "__main__":
     # Load AG_NEWS dataset; TODO: can be changed or replaced later with new dataset
-    train_iter = AG_NEWS(split='train')
-    test_iter = AG_NEWS(split='test')
+    #train_iter = AG_NEWS(split='train')
+    #test_iter = AG_NEWS(split='test')
+    train_iter = [(1,"Hello"),(0,"Boo"),(1,"Thanks")]
+    test_iter = [(1,"Hi"),(0,"Ew"),(1,"Cool")]
 
     # Initialize SentimentAnalysis object
+    print("initialize sentiment analysis model")
     sentiment_analysis = SentimentAnalysis()
 
     # Tokenize and build vocabulary
+    print("build vocab")
     sentiment_analysis.build_vocab(train_iter)
 
     # Convert data iterators to map-style datasets
@@ -156,4 +167,5 @@ if __name__ == "__main__":
     test_dataloader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 
     # Train the model
+    print("train model")
     sentiment_analysis.train(train_dataloader, test_dataloader, epochs=10)
