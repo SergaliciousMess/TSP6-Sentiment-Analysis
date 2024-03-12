@@ -19,61 +19,119 @@ Also need to download language models for the languages one intends to process. 
 python -m spacy download en_core_web_sm
    '''
 
+import csv
+import json
 import torch
+import argparse
 import spacy
 import numpy as np
+import torch.nn.functional as F
 from torch import nn
 from torch.utils.data import DataLoader
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
-from torchtext.datasets import AG_NEWS # data placeholder, TODO: to be deleted or replaced later as seen fit
 from torchtext.data.functional import to_map_style_dataset
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
-#embed_size- size of linear layer and embedding bag
 #device- desired device for computations
 #data_type- desired number format
 #optimizer- lambda function for desired pytorch optimization algorithm
 #learning_rate- desired learning rate for optimization
 #loss_function- lambda function for desired pytorch loss calculation algorithm
 
+def ground_truth_label_for_text(text):
+    # Assuming each text sample is a tuple where the label is the second element
+    return text[1]
+
+class CNNModel(nn.Module):
+    def __init__(self, architecture='standard', input_size=64, output_size=1):
+        super(CNNModel, self).__init__()
+        # Define the CNN architecture based on the chosen type
+        if architecture == 'standard':
+            self.model = nn.Sequential(
+                nn.Linear(input_size, output_size),
+                nn.Sigmoid()
+            )
+        elif architecture == '1d':
+            self.model = nn.Sequential(
+                nn.Conv1d(in_channels=input_size, out_channels=64, kernel_size=3),
+                nn.MaxPool1d(kernel_size=2),
+                nn.Flatten(),
+                nn.Linear(64 * ((input_size - 2) // 2), output_size),
+                nn.Sigmoid()
+            )
+        elif architecture == 'wide':
+            self.model = nn.Sequential(
+                nn.Conv1d(in_channels=input_size, out_channels=128, kernel_size=5),  # Increase out_channels for wider architecture
+                nn.MaxPool1d(kernel_size=2),
+                nn.Flatten(),
+                nn.Linear(128 * ((input_size - 4) // 2), output_size),  # Adjust input_size calculation for wider architecture
+                nn.Sigmoid()
+            )
+        elif architecture == 'deep':
+            self.model = nn.Sequential(
+                nn.Conv1d(in_channels=input_size, out_channels=64, kernel_size=3),
+                nn.ReLU(),
+                nn.Conv1d(in_channels=64, out_channels=64, kernel_size=3),
+                nn.ReLU(),
+                nn.MaxPool1d(kernel_size=2),
+                nn.Flatten(),
+                nn.Linear(64 * ((input_size - 2) // 2), output_size),
+                nn.Sigmoid()
+            )
+        elif architecture == 'dilated':
+            self.model = nn.Sequential(
+                nn.Conv1d(in_channels=input_size, out_channels=64, kernel_size=3, dilation=2),
+                nn.MaxPool1d(kernel_size=2),
+                nn.Flatten(),
+                nn.Linear(64 * ((input_size - 4) // 2), output_size),
+                nn.Sigmoid()
+            )
+        elif architecture == 'parallel':
+            self.conv1 = nn.Conv1d(in_channels=input_size, out_channels=32, kernel_size=3)
+            self.conv2 = nn.Conv1d(in_channels=input_size, out_channels=32, kernel_size=5)
+            self.conv3 = nn.Conv1d(in_channels=input_size, out_channels=32, kernel_size=7)
+            self.pool = nn.MaxPool1d(kernel_size=2)
+            self.fc = nn.Linear(32 * ((input_size - 6) // 2), output_size)
+
+    def forward(self, x):
+        if hasattr(self, 'model'):
+            return self.model(x)
+        elif hasattr(self, 'conv1'):
+            # Apply convolutional operations followed by ReLU activation
+            x1 = F.relu(self.conv1(x))  # Apply convolution and ReLU activation to input x
+            x2 = F.relu(self.conv2(x))  # Apply convolution and ReLU activation to input x
+            x3 = F.relu(self.conv3(x))  # Apply convolution and ReLU activation to input x
+        
+            # Apply max pooling to reduce spatial dimensions
+            x1 = self.pool(x1)  # Apply max pooling to the conv1 result
+            x2 = self.pool(x2)  # Apply max pooling to the conv2 result
+            x3 = self.pool(x3)  # Apply max pooling to the conv3 result
+        
+            # Concatenate the pooled feature maps along the channel dimension
+            x = torch.cat((x1, x2, x3), dim=1)  # Concatenate the pooled feature maps along the channel dimension
+        
+            # Flatten the concatenated feature maps
+            x = x.view(x.size(0), -1)  # Flatten the concatenated feature maps
+        
+            # Apply fully connected layer
+            x = self.fc(x)  # Apply fully connected layer to the flattened feature maps
+        
+            # Apply sigmoid activation function to the output
+            return torch.sigmoid(x)  # Apply sigmoid activation function to the output
+
 class SentimentAnalysis():
-    def __init__(self, 
-                 embed_size = 64,
-                 messages_iter = [],
-                 device="cuda:0" if torch.cuda.is_available() else "cpu",
-                 data_type=torch.float32,
-                 optimizer=torch.optim.Adam,
-                 nlp = spacy.load("en_core_web_sm"),
-                 learning_rate=0.001, # corrected learning curve value
-                 loss_function=torch.nn.CrossEntropyLoss()):
-        
-        # Set device and data type defaults
-        torch.set_default_device(device)
-        torch.set_default_dtype(data_type)
-        
-        self.nlp = nlp
-        self.build_vocab(messages_iter)
-        self.bag = nn.EmbeddingBag(num_embeddings=len(nlp.vocab), embedding_dim=embed_size ) #TODO initialize embedding bag
-
-
-        # Define the nn architecture
-        self.linear = nn.Sequential(
-            nn.Linear(embed_size, 1),   # FIXME this is a placeholder constructor for the linear part of the neural network;
-                                #Linear layer with input size 64 and output size 1
-            nn.Sigmoid()       # Sigmoid activation function for binary classification
-        )
-
-        # Initialize optimizer and loss function
-        self.optimizer = optimizer(self.linear.parameters(), lr=learning_rate)
+    def __init__(self, model, learning_rate=0.001, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss()):
+        self.model = model
+        self.learning_rate = learning_rate
+        self.optimizer = optimizer(self.model.parameters(), lr=learning_rate)
         self.loss_function = loss_function
 
     def tokenize(self, text):
-        # Use spaCy for advanced tokenization
+        # Tokenization logic using spaCy
         doc = self.nlp(text)
-        
-        # Extract tokens after applying additional proc essing
         tokens = [token.lemma_.lower().strip() for token in doc if not token.is_stop and not token.is_punct]
-        
         return tokens
 
     def build_vocab(self, data):
@@ -87,30 +145,13 @@ class SentimentAnalysis():
         numerical_representation = [self.vocab[token] for token in self.tokenize(text)]
         return numerical_representation
 
-    # Returns sentiment_labels
     def analyze(self, input_text: str):
-       # Convert input_text to numerical representation using vocabulary
-       # Represents text data before feeding it into the model. 
-       # Convert text data into numerical representations (e.g., word embeddings) using NumPy arrays.
         numerical_representation = self.text_to_numerical(input_text)
-        
-        # Convert numerical representation to NumPy array  
         input_array = np.array(numerical_representation)
-        
-        # Convert input_tokens to tensor
-        input_tensor = torch.tensor(input_array)  
-        
-        # Forward pass through the model
-        output = self.model(input_tensor) #FIXME
-        
-        # Performing any post-processing to convert output probabilities to sentiment labels
-        
-        # Output is a tensor of probabilities 
-        # Define the threshold values for each sentiment category
-        positive_threshold = 0.7 # This can be changed as necessary later
-        negative_threshold = 0.3 # So can this one
-        
-        # Convert probabilities to sentiment labels
+        input_tensor = torch.tensor(input_array, dtype=torch.float32)
+        output = self.model(input_tensor)
+        positive_threshold = 0.7 
+        negative_threshold = 0.3 
         sentiment_labels = []
         for probability in output:
             if probability >= positive_threshold:
@@ -119,53 +160,108 @@ class SentimentAnalysis():
                 sentiment_labels.append("Negative")
             else:
                 sentiment_labels.append("Neutral")
-        
         return sentiment_labels
     
-    def train(self, train_iter, val_iter, epochs=10):
-        # Define the training loop
+    def train(self, train_dataloader, epochs=10):
         for epoch in range(epochs):
-            running_loss = 0.0 # Initial running loss is 0.0
-            for idx, (inputs, labels) in enumerate(train_iter):
-                # Zero the parameter gradients
+            running_loss = 0.0
+            for inputs, labels in train_dataloader:
                 self.optimizer.zero_grad()
-
-                # Forward pass
-                outputs = self.model(inputs) #FIXME
-                
-                # Compute the loss
+                outputs = self.model(inputs)
                 loss = self.loss_function(outputs, labels)
-                
-                # Backward pass and optimization
                 loss.backward()
                 self.optimizer.step()
-
-                # Print statistics
                 running_loss += loss.item()
             print(f"Epoch {epoch+1}, Loss: {running_loss}")
-        
-if __name__ == "__main__":
-    # Load AG_NEWS dataset; TODO: can be changed or replaced later with new dataset
-    #train_iter = AG_NEWS(split='train')
-    #test_iter = AG_NEWS(split='test')
-    train_iter = [(1,"Hello"),(0,"Boo"),(1,"Thanks")]
-    test_iter = [(1,"Hi"),(0,"Ew"),(1,"Cool")]
-    messages = []
-    for _, t in test_iter:
-        messages.append(t)
 
-    # Initialize SentimentAnalysis object
-    print("initialize sentiment analysis model")
-    sentiment_analysis = SentimentAnalysis(messages_iter=messages, device="cpu") #FIXME doesnt work on gpu
+# Function to load a dataset from a given path, which can accept csv, json, or txt formats
+def load_dataset(dataset_path, format):
+    if format == 'csv':
+        dataset = []
+        with open(dataset_path, 'r', encoding='utf-8') as file:
+            csv_reader = csv.reader(file)
+            for row in csv_reader:
+                # Assuming each row represents a sample
+                dataset.append(row[0].strip())  # Assuming the text is in the first column
+        return dataset
+    elif format == 'json':
+        dataset = []
+        with open(dataset_path, 'r', encoding='utf-8') as file:
+            json_data = json.load(file)
+            for item in json_data:
+                # Assuming each item represents a sample
+                dataset.append(item['text'].strip())  # Assuming the text is stored under the key 'text'
+        return dataset
+    elif format == 'txt':
+        dataset = []
+        with open(dataset_path, 'r', encoding='utf-8') as file:
+            for line in file:
+                dataset.append(line.strip())
+        return dataset
+    else:
+        raise ValueError("Unsupported dataset format. Supported formats: 'csv', 'json', 'txt'")
+
+def main():
+     # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='Sentiment Analysis CLI')
+    parser.add_argument('--architecture', choices=['standard', '1d', 'deep', 'wide', 'parallel', 'dilated', 'attention'], default='standard', help='Select the CNN architecture (default: standard)')
+    parser.add_argument('--learning-rate', type=float, default=0.001, help='Learning rate for training (default: 0.001)')
+    parser.add_argument('--batch-size', type=int, default=64, help='Batch size for training (default: 64)')
+    parser.add_argument('--epochs', type=int, default=10, help='Number of epochs for training (default: 10)')
+    parser.add_argument('--dataset', type=str, required=True, help='Path to the dataset file')
+    parser.add_argument('--positive-threshold', type=float, default=0.7, help='Threshold for classifying as Positive (default: 0.7)')
+    parser.add_argument('--negative-threshold', type=float, default=0.3, help='Threshold for classifying as Negative (default: 0.3)')
+
+    args = parser.parse_args()
+    
+    # Execute functionality based on command-line arguments
+    print(f"Architecture: {args.architecture}")
+    print(f"Learning Rate: {args.learning_rate}")
+    print(f"Batch Size: {args.batch_size}")
+    print(f"Epochs: {args.epochs}")
+    print(f"Dataset: {args.dataset}")
+    print(f"Positive Threshold: {args.positive_threshold}")
+    print(f"Negative Threshold: {args.negative_threshold}")
+    
+    # Load dataset from the specified file path
+    dataset = load_dataset(args.dataset)
+
+    # Split the dataset into training and testing sets
+    train_texts, test_texts = train_test_split(dataset, test_size=0.2, random_state=42)
+
+    # Initialize the CNN model with the specified architecture and hyperparameters
+    model = CNNModel(architecture=args.architecture)
 
     # Convert data iterators to map-style datasets
-    train_dataset = to_map_style_dataset(train_iter)
-    test_dataset = to_map_style_dataset(test_iter)
+    train_dataloader = DataLoader(train_texts, batch_size=args.batch_size, shuffle=True)
 
-    # Create DataLoader for training and testing
-    train_dataloader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-    test_dataloader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+    # Initialize SentimentAnalysis with the selected model
+    sentiment_analysis = SentimentAnalysis(model, learning_rate=args.learning_rate)
 
     # Train the model
-    print("train model")
-    sentiment_analysis.train(train_dataloader, test_dataloader, epochs=10)
+    sentiment_analysis.train(train_dataloader, epochs=args.epochs)
+
+    # Evaluate the model
+    predictions = []
+    targets = []
+    for text in test_texts:
+        prediction = sentiment_analysis.analyze(text)
+        predictions.extend(prediction)
+        # Assuming that labels are inferred from text or dataset structure
+        targets.extend(ground_truth_label_for_text(text))
+
+    # Calculate performance metrics
+    accuracy = accuracy_score(targets, predictions)
+    precision = precision_score(targets, predictions, average='weighted')
+    recall = recall_score(targets, predictions, average='weighted')
+    f1 = f1_score(targets, predictions, average='weighted')
+
+    # Print performance metrics
+    print(f"Accuracy: {accuracy}")
+    print(f"Precision: {precision}")
+    print(f"Recall: {recall}")
+    print(f"F1 Score: {f1}")
+
+
+if __name__ == "__main__":
+   main()
