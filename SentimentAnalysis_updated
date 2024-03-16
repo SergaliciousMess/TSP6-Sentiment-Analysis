@@ -121,6 +121,17 @@ class CNNModel(nn.Module):
             # Apply sigmoid activation function to the output
             return torch.sigmoid(x)  # Apply sigmoid activation function to the output
 
+class TextClassifier(nn.Module):
+    def __init__(self, bag, network):
+        super(TextClassifier, self).__init__()
+        self.bag = bag
+        self.network = network
+
+    def forward(self, input):
+        return self.bag(self.network(input))
+
+
+
 class SentimentAnalysis():
     def __init__(self, model, embedding_matrix, num_classes, learning_rate=0.001, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss()):
             # Initialize the embedding bag and fully connected layers
