@@ -122,8 +122,15 @@ class CNNModel(nn.Module):
             return torch.sigmoid(x)  # Apply sigmoid activation function to the output
 
 class SentimentAnalysis():
-    def __init__(self, model, learning_rate=0.001, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss()):
+    def __init__(self, model, embedding_matrix, num_classes, learning_rate=0.001, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss()):
+            # Initialize the embedding bag and fully connected layers
+        self.embedding_bag = nn.EmbeddingBag.from_pretrained(embedding_matrix, mode='mean')
+        self.fc = nn.Linear(embedding_matrix.size(1), num_classes)
+        
+        # Assign the pre-constructed model to self.model
         self.model = model
+        
+        # Initialize optimizer and loss function
         self.learning_rate = learning_rate
         self.optimizer = optimizer(self.model.parameters(), lr=learning_rate)
         self.loss_function = loss_function
