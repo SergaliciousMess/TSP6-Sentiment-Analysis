@@ -130,16 +130,11 @@ class TextClassifier(nn.Module):
     def forward(self, input):
         return self.bag(self.network(input))
 
-
-
 class SentimentAnalysis():
     def __init__(self, model, embedding_matrix, num_classes, learning_rate=0.001, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss()):
-            # Initialize the embedding bag and fully connected layers
-        self.embedding_bag = nn.EmbeddingBag.from_pretrained(embedding_matrix, mode='mean')
-        self.fc = nn.Linear(embedding_matrix.size(1), num_classes)
-        
+        # Initialize the embedding bag and fully connected layers
         # Assign the pre-constructed model to self.model
-        self.model = model
+        self.model = TextClassifier(bag = nn.EmbeddingBag.from_pretrained(embedding_matrix, mode='mean'), network = nn.Linear(embedding_matrix.size(1), num_classes))
         
         # Initialize optimizer and loss function
         self.learning_rate = learning_rate
