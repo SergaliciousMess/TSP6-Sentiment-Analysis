@@ -134,7 +134,7 @@ class SentimentAnalysis():
     def __init__(self, dataset, model_type='standard', embedding_width=64, num_classes=1, learning_rate=0.001, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss()):
         #Initialize nlp and build vocab
         self.nlp = spacy.load('en_core_web_sm')
-        self.vocab = build_vocab_from_iterator(dataset)
+        self.vocab = self.build_vocab(dataset)
 
         #Construct model based off of parameters
         self.model = TextClassifier(bag = nn.EmbeddingBag(embedding_width, len(self.vocab)), network = CNNModel(architecture=model_type, input_size=embedding_width, output_size=num_classes))
@@ -144,18 +144,27 @@ class SentimentAnalysis():
         self.optimizer = optimizer(self.model.parameters(), lr=learning_rate)
         self.loss_function = loss_function
 
-    def tokenize(self, text):
+    def tokenize(self, text : str):
         # Tokenization logic using spaCy
         doc = self.nlp(text)
         tokens = [token.lemma_.lower().strip() for token in doc if not token.is_stop and not token.is_punct]
         return tokens
-
+#FIXME: this doesnt work with the dataloader
     def build_vocab(self, data):
         # Build vocabulary from the tokenized data
+
+        #remove labels
         unlabeled = []
         for entry in data:
             unlabeled.append(entry[1])
-        vocab = build_vocab_from_iterator(map(self.tokenize, unlabeled), specials=["<unk>"])
+
+        #put every token in every entry into the tokens list
+        tokens = []
+        for entry in unlabeled:
+            for token in self.tokenize(entry):
+                tokens.append[token]
+        
+        vocab = build_vocab_from_iterator(tokens, specials=["<unk>"])
         vocab.set_default_index(vocab["<unk>"])
         return vocab
     
@@ -193,6 +202,24 @@ class SentimentAnalysis():
                 self.optimizer.step()
                 running_loss += loss.item()
             print(f"Epoch {epoch+1}, Loss: {running_loss}")
+
+    def train2(self, dataset, epochs=10):
+        labels = []
+        text_tokens = []
+        for label, text in dataset:
+            labels.append(label)
+            text_tokens.append(self.text_to_numerical(text))
+        
+        #convert isolated lists into tensors
+        labels = torch.tensor(labels)
+        text_tokens = torch.tensor(text_tokens)
+
+        for epoch in range(epochs):
+            self.optimizer.zero_grad() 
+            predictions = self.model(text_tokens)
+            loss = self.loss_function(predictions, labels)
+            loss.backward()
+            self.optimizer.step()
 
 # Function to load a dataset from a given path, which can accept csv, json, or txt formats
         #FIXME: FIX LABEL/DATA ENTRIES FOR JSON AND TXT
