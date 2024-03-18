@@ -131,7 +131,7 @@ class TextClassifier(nn.Module):
         return self.bag(self.network(input))
 
 class SentimentAnalysis():
-    def __init__(self, model, embedding_matrix, num_classes, learning_rate=0.001, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss()):
+    def __init__(self, model, embedding_matrix, num_classes=1, learning_rate=0.001, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss()):
         # Initialize the embedding bag and fully connected layers
         # Assign the pre-constructed model to self.model
         self.model = TextClassifier(bag = nn.EmbeddingBag.from_pretrained(embedding_matrix, mode='mean'), network = nn.Linear(embedding_matrix.size(1), num_classes))
@@ -237,7 +237,7 @@ def main():
     print(f"Negative Threshold: {args.negative_threshold}")
     
     # Load dataset from the specified file path
-    dataset = load_dataset(args.dataset)
+    dataset = load_dataset(args.dataset, 'csv') #FIXME- hardcoding csv so it works for testing this data
 
     # Split the dataset into training and testing sets
     train_texts, test_texts = train_test_split(dataset, test_size=0.2, random_state=42)
