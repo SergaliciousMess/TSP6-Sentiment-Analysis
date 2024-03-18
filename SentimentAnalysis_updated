@@ -131,10 +131,13 @@ class TextClassifier(nn.Module):
         return self.bag(self.network(input))
 
 class SentimentAnalysis():
-    def __init__(self, model, embedding_matrix, num_classes=1, learning_rate=0.001, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss()):
-        # Initialize the embedding bag and fully connected layers
-        # Assign the pre-constructed model to self.model
-        self.model = TextClassifier(bag = nn.EmbeddingBag.from_pretrained(embedding_matrix, mode='mean'), network = nn.Linear(embedding_matrix.size(1), num_classes))
+    def __init__(self, dataset, model_type='standard', embedding_width=64, num_classes=1, learning_rate=0.001, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss()):
+        #Initialize nlp and build vocab
+        self.nlp = spacy.load('en_core_web_sm')
+        self.vocab = build_vocab_from_iterator(dataset)
+
+        #Construct model based off of parameters
+        self.model = TextClassifier(bag = nn.EmbeddingBag(embedding_width, len(self.vocab)), network = CNNModel(architecture=model_type, input_size=embedding_width, output_size=num_classes))
         
         # Initialize optimizer and loss function
         self.learning_rate = learning_rate
@@ -149,7 +152,10 @@ class SentimentAnalysis():
 
     def build_vocab(self, data):
         # Build vocabulary from the tokenized data
-        vocab = build_vocab_from_iterator(map(self.tokenize, data), specials=["<unk>"])
+        unlabeled = []
+        for entry in data:
+            unlabeled.append(entry[1])
+        vocab = build_vocab_from_iterator(map(self.tokenize, unlabeled), specials=["<unk>"])
         vocab.set_default_index(vocab["<unk>"])
         return vocab
     
@@ -176,9 +182,10 @@ class SentimentAnalysis():
         return sentiment_labels
     
     def train(self, train_dataloader, epochs=10):
+        #FIXME: convert train_dataloader entries from tuple to tensors
         for epoch in range(epochs):
             running_loss = 0.0
-            for inputs, labels in train_dataloader:
+            for labels, inputs in train_dataloader:
                 self.optimizer.zero_grad()
                 outputs = self.model(inputs)
                 loss = self.loss_function(outputs, labels)
@@ -188,6 +195,7 @@ class SentimentAnalysis():
             print(f"Epoch {epoch+1}, Loss: {running_loss}")
 
 # Function to load a dataset from a given path, which can accept csv, json, or txt formats
+        #FIXME: FIX LABEL/DATA ENTRIES FOR JSON AND TXT
 def load_dataset(dataset_path, format):
     if format == 'csv':
         dataset = []
@@ -195,7 +203,7 @@ def load_dataset(dataset_path, format):
             csv_reader = csv.reader(file)
             for row in csv_reader:
                 # Assuming each row represents a sample
-                dataset.append(row[0].strip())  # Assuming the text is in the first column
+                dataset.append( (int(row[0]), row[1].strip()) )  # Assuming the text is in the second column
         return dataset
     elif format == 'json':
         dataset = []
@@ -249,10 +257,10 @@ def main():
     train_dataloader = DataLoader(train_texts, batch_size=args.batch_size, shuffle=True)
 
     # Initialize SentimentAnalysis with the selected model
-    sentiment_analysis = SentimentAnalysis(model, learning_rate=args.learning_rate)
+    sentiment_analysis = SentimentAnalysis(dataset=train_dataloader, model_type=model, learning_rate=args.learning_rate)
 
     # Train the model
-    sentiment_analysis.train(train_dataloader, epochs=args.epochs)
+    sentiment_analysis.train(train_dataloader=train_dataloader, epochs=args.epochs)
 
     # Evaluate the model
     predictions = []
