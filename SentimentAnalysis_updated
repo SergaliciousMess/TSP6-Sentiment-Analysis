@@ -41,14 +41,16 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 #loss_function- lambda function for desired pytorch loss calculation algorithm
 
 def ground_truth_label_for_text(text):
-    # Assuming each text sample is a tuple where the label is the second element
-    return text[1]
+    # Assuming each text sample is a tuple where the label is the first element
+    return text[0]
 
 class CNNModel(nn.Module):
     def __init__(self, architecture='standard', input_size=64, output_size=1):
         super(CNNModel, self).__init__()
+        self.architecture = architecture
         # Define the CNN architecture based on the chosen type
         if architecture == 'standard':
+            self.flag = True
             self.model = nn.Sequential(
                 nn.Linear(input_size, output_size),
                 nn.Sigmoid()
@@ -120,6 +122,8 @@ class CNNModel(nn.Module):
         
             # Apply sigmoid activation function to the output
             return torch.sigmoid(x)  # Apply sigmoid activation function to the output
+        
+        return self.model(x)
 
 class TextClassifier(nn.Module):
     def __init__(self, bag, network):
@@ -128,7 +132,7 @@ class TextClassifier(nn.Module):
         self.network = network
 
     def forward(self, input):
-        return self.bag(self.network(input))
+        return self.network(self.bag(input))
 
 class SentimentAnalysis():
     def __init__(self, dataset, model_type='standard', embedding_width=64, num_classes=1, learning_rate=0.001, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss()):
@@ -137,7 +141,9 @@ class SentimentAnalysis():
         self.vocab = self.build_vocab(dataset)
 
         #Construct model based off of parameters
-        self.model = TextClassifier(bag = nn.EmbeddingBag(embedding_width, len(self.vocab)), network = CNNModel(architecture=model_type, input_size=embedding_width, output_size=num_classes))
+        bag = nn.EmbeddingBag(num_embeddings=len(self.vocab), embedding_dim=embedding_width)
+        network = CNNModel(architecture=model_type, input_size=embedding_width, output_size=num_classes)
+        self.model = TextClassifier(bag = bag, network = network)
         
         self.embedding_width = embedding_width
 
@@ -210,17 +216,16 @@ class SentimentAnalysis():
                 text_tokens.append(self.text_to_numerical(text))
 
         #convert isolated lists into tensors
-                #FIXME the tensors are not cooperating :(
         labels = torch.tensor(labels)
         for i in range(len(text_tokens)):
-            while len(text_tokens[i]) > self.embedding_width:
+            while len(text_tokens[i]) < self.embedding_width:
                 text_tokens[i].append(0)
-            text_tokens[i] = torch.tensor(text_tokens[i])
         text_tokens = torch.tensor(text_tokens)
-
+#FIXME: data type issues
         for epoch in range(epochs):
             self.optimizer.zero_grad() 
             predictions = self.model(text_tokens)
+            predictions = torch.flatten(predictions)
             loss = self.loss_function(predictions, labels)
             loss.backward()
             self.optimizer.step()
@@ -288,7 +293,7 @@ def main():
     train_dataloader = DataLoader(train_texts, batch_size=args.batch_size, shuffle=True)
 
     # Initialize SentimentAnalysis with the selected model
-    sentiment_analysis = SentimentAnalysis(dataset=train_dataloader, model_type=model, learning_rate=args.learning_rate)
+    sentiment_analysis = SentimentAnalysis(dataset=train_dataloader, model_type=args.architecture, learning_rate=args.learning_rate)
 
     # Train the model
     sentiment_analysis.train2(dataloader=train_dataloader, epochs=args.epochs)
