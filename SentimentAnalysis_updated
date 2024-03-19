@@ -139,6 +139,8 @@ class SentimentAnalysis():
         #Construct model based off of parameters
         self.model = TextClassifier(bag = nn.EmbeddingBag(embedding_width, len(self.vocab)), network = CNNModel(architecture=model_type, input_size=embedding_width, output_size=num_classes))
         
+        self.embedding_width = embedding_width
+
         # Initialize optimizer and loss function
         self.learning_rate = learning_rate
         self.optimizer = optimizer(self.model.parameters(), lr=learning_rate)
@@ -149,20 +151,15 @@ class SentimentAnalysis():
         doc = self.nlp(text)
         tokens = [token.lemma_.lower().strip() for token in doc if not token.is_stop and not token.is_punct]
         return tokens
-#FIXME: this doesnt work with the dataloader
-    def build_vocab(self, data):
+    def build_vocab(self, dataloader):
         # Build vocabulary from the tokenized data
-
-        #remove labels
-        unlabeled = []
-        for entry in data:
-            unlabeled.append(entry[1])
 
         #put every token in every entry into the tokens list
         tokens = []
-        for entry in unlabeled:
-            for token in self.tokenize(entry):
-                tokens.append[token]
+        for batch in dataloader:
+            for text in batch[1]:
+                for token in self.tokenize(text): #first element in entry is label, second is text
+                    tokens.append(token)
         
         vocab = build_vocab_from_iterator(tokens, specials=["<unk>"])
         vocab.set_default_index(vocab["<unk>"])
@@ -203,15 +200,22 @@ class SentimentAnalysis():
                 running_loss += loss.item()
             print(f"Epoch {epoch+1}, Loss: {running_loss}")
 
-    def train2(self, dataset, epochs=10):
+    def train2(self, dataloader, epochs=10):
         labels = []
         text_tokens = []
-        for label, text in dataset:
-            labels.append(label)
-            text_tokens.append(self.text_to_numerical(text))
-        
+        for batch in dataloader:
+            for label in batch[0]:
+                labels.append(label)
+            for text in batch[1]:
+                text_tokens.append(self.text_to_numerical(text))
+
         #convert isolated lists into tensors
+                #FIXME the tensors are not cooperating :(
         labels = torch.tensor(labels)
+        for i in range(len(text_tokens)):
+            while len(text_tokens[i]) > self.embedding_width:
+                text_tokens[i].append(0)
+            text_tokens[i] = torch.tensor(text_tokens[i])
         text_tokens = torch.tensor(text_tokens)
 
         for epoch in range(epochs):
@@ -287,7 +291,7 @@ def main():
     sentiment_analysis = SentimentAnalysis(dataset=train_dataloader, model_type=model, learning_rate=args.learning_rate)
 
     # Train the model
-    sentiment_analysis.train(train_dataloader=train_dataloader, epochs=args.epochs)
+    sentiment_analysis.train2(dataloader=train_dataloader, epochs=args.epochs)
 
     # Evaluate the model
     predictions = []
