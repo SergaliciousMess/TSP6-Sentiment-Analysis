@@ -50,7 +50,6 @@ class CNNModel(nn.Module):
         self.architecture = architecture
         # Define the CNN architecture based on the chosen type
         if architecture == 'standard':
-            self.flag = True
             self.model = nn.Sequential(
                 nn.Linear(input_size, output_size),
                 nn.Sigmoid()
@@ -135,16 +134,21 @@ class TextClassifier(nn.Module):
         return self.network(self.bag(input))
 
 class SentimentAnalysis():
-    def __init__(self, dataset, model_type='standard', embedding_width=64, num_classes=1, learning_rate=0.001, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss()):
+    def __init__(self, dataset, model_type='standard', embedding_width=64, num_classes=1, learning_rate=0.001, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss(), data_type = torch.float32):
         #Initialize nlp and build vocab
+        torch.set_default_dtype(data_type)
         self.nlp = spacy.load('en_core_web_sm')
         self.vocab = self.build_vocab(dataset)
 
         #Construct model based off of parameters
         bag = nn.EmbeddingBag(num_embeddings=len(self.vocab), embedding_dim=embedding_width)
+        bag.to(data_type)
         network = CNNModel(architecture=model_type, input_size=embedding_width, output_size=num_classes)
+        network.to(data_type)
         self.model = TextClassifier(bag = bag, network = network)
         
+        #store some important variables
+        self.data_type = data_type
         self.embedding_width = embedding_width
 
         # Initialize optimizer and loss function
@@ -207,6 +211,7 @@ class SentimentAnalysis():
             print(f"Epoch {epoch+1}, Loss: {running_loss}")
 
     def train2(self, dataloader, epochs=10):
+        #collect training values
         labels = []
         text_tokens = []
         for batch in dataloader:
@@ -217,10 +222,13 @@ class SentimentAnalysis():
 
         #convert isolated lists into tensors
         labels = torch.tensor(labels)
+        labels = labels.to(self.data_type)
+        
         for i in range(len(text_tokens)):
             while len(text_tokens[i]) < self.embedding_width:
                 text_tokens[i].append(0)
         text_tokens = torch.tensor(text_tokens)
+
 #FIXME: data type issues
         for epoch in range(epochs):
             self.optimizer.zero_grad() 
