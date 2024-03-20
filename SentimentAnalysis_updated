@@ -11,7 +11,7 @@
                 Error Handling: Implement error handling mechanisms to gracefully handle exceptions and errors during data processing and model training.
                 
                 
-Downlaod spacy to your device before running:                
+Download spacy to your device before running:                
 To use spacy in Python code, install the library using pip:
 pip install spacy
 
@@ -161,9 +161,9 @@ class SentimentAnalysis():
         doc = self.nlp(text)
         tokens = [token.lemma_.lower().strip() for token in doc if not token.is_stop and not token.is_punct]
         return tokens
+    
     def build_vocab(self, dataloader):
         # Build vocabulary from the tokenized data
-
         #put every token in every entry into the tokens list
         tokens = []
         for batch in dataloader:
@@ -251,7 +251,7 @@ class SentimentAnalysis():
         self.train_from_tensor(labels, text_tokens, epochs)
 
 # Function to load a dataset from a given path, which can accept csv, json, or txt formats
-        #FIXME: FIX LABEL/DATA ENTRIES FOR JSON AND TXT
+        # FIXED LABEL/DATA ENTRIES FOR JSON AND TXT
 def load_dataset(dataset_path, format):
     if format == 'csv':
         dataset = []
@@ -259,25 +259,29 @@ def load_dataset(dataset_path, format):
             csv_reader = csv.reader(file)
             for row in csv_reader:
                 # Assuming each row represents a sample
-                dataset.append( (int(row[0]), row[1].strip()) )  # Assuming the text is in the second column
+                dataset.append( (int(row[0]), row[1].strip()) )
         return dataset
     elif format == 'json':
         dataset = []
         with open(dataset_path, 'r', encoding='utf-8') as file:
             json_data = json.load(file)
             for item in json_data:
-                # Assuming each item represents a sample
-                dataset.append(item['text'].strip())  # Assuming the text is stored under the key 'text'
+                # Assuming each item represents a sample with a label in the first column, and the text to be analyzed in the second column
+                dataset.append((item['label'], item['text'].strip()))  # Assuming the text is stored under the key 'text' and the label is stored under the key 'label'
         return dataset
     elif format == 'txt':
         dataset = []
         with open(dataset_path, 'r', encoding='utf-8') as file:
             for line in file:
-                dataset.append(line.strip())
+                # Split each line by a delimiter (e.g., tab or comma, etc) to separate label and text
+                parts = line.strip().split('\t')  # Assuming tab-separated data
+                # parts = line.strip().split(',')  # Assuming comma-separated data
+                if len(parts) == 2:
+                    dataset.append((parts[0], parts[1]))
+                else:
+                    # Handle cases where there might be no label or text
+                    raise ValueError("Invalid format in the TXT file. Each line should contain a label and text separated by a delimiter.")
         return dataset
-    else:
-        raise ValueError("Unsupported dataset format. Supported formats: 'csv', 'json', 'txt'")
-
 def main():
      # Parse command-line arguments
     parser = argparse.ArgumentParser(description='Sentiment Analysis CLI')
