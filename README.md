@@ -2,7 +2,7 @@
 
 ## Dependencies
 
-Requires [Python 3.10.11](https://www.python.org/downloads/release/python-31011/), spaCy, and PyTorch.
+Requires [Python 3.10.11](https://www.python.org/downloads/release/python-31011/), spaCy, PyTorch, and Torchtext.
 
 Install spaCy with pip:
 
@@ -20,4 +20,10 @@ Install PyTorch with pip:
 
 ```
 pip install -U torch
+```
+
+Install Torchtext with pip:
+
+```
+pip install -U torchtext
 ```
