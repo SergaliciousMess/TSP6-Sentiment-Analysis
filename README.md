@@ -2,7 +2,7 @@
 
 ## Dependencies
 
-Requires [Python 3.10.11](https://www.python.org/downloads/release/python-31011/), spaCy, PyTorch, and Torchtext.
+Requires [Python 3.10.11](https://www.python.org/downloads/release/python-31011/), spaCy, PyTorch, Torchtext, and scikit-learn.
 
 Install spaCy with pip:
 
@@ -26,4 +26,10 @@ Install Torchtext with pip:
 
 ```
 pip install -U torchtext
+```
+
+Install scikit-learn with pip:
+
+```
+pip install -U scikit-learn
 ```
