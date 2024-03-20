@@ -134,11 +134,11 @@ class TextClassifier(nn.Module):
         return self.network(self.bag(input))
 
 class SentimentAnalysis():
-    def __init__(self, dataset, model_type='standard', embedding_width=64, num_classes=1, learning_rate=0.001, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss(), data_type = torch.float32):
+    def __init__(self, dataloader, model_type='standard', embedding_width=64, num_classes=1, learning_rate=0.001, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss(), data_type = torch.float32):
         #Initialize nlp and build vocab
         torch.set_default_dtype(data_type)
         self.nlp = spacy.load('en_core_web_sm')
-        self.vocab = self.build_vocab(dataset)
+        self.vocab = self.build_vocab(dataloader)
 
         #Construct model based off of parameters
         bag = nn.EmbeddingBag(num_embeddings=len(self.vocab), embedding_dim=embedding_width)
@@ -317,7 +317,7 @@ def main():
     train_dataloader = DataLoader(train_texts, batch_size=args.batch_size, shuffle=True)
 
     # Initialize SentimentAnalysis with the selected model
-    sentiment_analysis = SentimentAnalysis(dataset=train_dataloader, model_type=args.architecture, learning_rate=args.learning_rate)
+    sentiment_analysis = SentimentAnalysis(dataloader=train_dataloader, model_type=args.architecture, learning_rate=args.learning_rate)
 
     # Train the model
     #sentiment_analysis.train(train_dataloader=train_dataloader, epochs=args.epochs)
