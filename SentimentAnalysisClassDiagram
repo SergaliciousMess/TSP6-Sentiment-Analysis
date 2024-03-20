@@ -2,22 +2,14 @@
 
 Class SentimentAnalysis{
 analyzeMessage(message)
-train(dataloader)
-train(raw_dataset)
-train(tensors)
+train(testing_data, training_data)
 build_vocab(data)
 tokenize(one_word_string)
 text_to_numerical(string_list)
 
 
-model
+linear_model
 natural_language_processor
-}
-
-Class TextClassifier {
-forward()
-embedding_bag
-linear_layer
 }
 
 Class SAUI {
@@ -33,5 +25,4 @@ testing_data
 }
 
 SAUI -* SentimentAnalysis : has 1
-SentimentAnalysis -* TextClassifier : has 1
 @enduml
