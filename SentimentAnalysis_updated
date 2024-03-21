@@ -130,8 +130,8 @@ class TextClassifier(nn.Module):
         self.bag = bag
         self.network = network
 
-    def forward(self, input):
-        return self.network(self.bag(input))
+    def forward(self, input, offsets=None):
+        return self.network(self.bag(input, offsets))
 
 class SentimentAnalysis():
     def __init__(self, dataloader, model_type='standard', embedding_width=64, num_classes=1, learning_rate=0.001, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss(), data_type = torch.float32):
@@ -161,31 +161,31 @@ class SentimentAnalysis():
         doc = self.nlp(text)
         tokens = [token.lemma_.lower().strip() for token in doc if not token.is_stop and not token.is_punct]
         return tokens
-    def build_vocab(self, dataloader):
-        # Build vocabulary from the tokenized data
-
-        #put every token in every entry into the tokens list
-        tokens = []
+    
+    def yield_tokens(self, dataloader):
         for batch in dataloader:
             for text in batch[1]:
-                for token in self.tokenize(text): #first element in entry is label, second is text
-                    tokens.append(token)
-        
-        vocab = build_vocab_from_iterator(tokens, specials=["<unk>"])
+                yield self.tokenize(text)
+
+
+    def build_vocab(self, dataloader):
+        # Build vocabulary from the tokenized data
+        vocab = build_vocab_from_iterator(self.yield_tokens(dataloader), specials=["<unk>"])
         vocab.set_default_index(vocab["<unk>"])
         return vocab
+    
     
     #FIXME currently does not work?
     def text_to_numerical(self, text):
         # Convert tokenized text to numerical representation using vocabulary
-        numerical_representation = [self.vocab[token] for token in self.tokenize(text)]
+        numerical_representation = self.vocab(self.tokenize(text))
         return numerical_representation
 
     def analyze(self, input_text: str):
         numerical_representation = self.text_to_numerical(input_text)
-        input_array = np.array(numerical_representation)
-        input_tensor = torch.tensor(input_array, dtype=self.data_type).to_padded_tensor(self.embedding_width)
-        output = self.model(input_tensor)
+        numerical_representation += [0] * (self.embedding_width - len(numerical_representation))
+        input_tensor = torch.tensor(numerical_representation)
+        output = self.model(input_tensor, torch.tensor([0]))
         positive_threshold = 0.7 
         negative_threshold = 0.3 
         sentiment_labels = []
@@ -323,7 +323,7 @@ def main():
     predictions = []
     targets = []
     for text in test_texts:
-        prediction = sentiment_analysis.analyze(text)
+        prediction = sentiment_analysis.analyze(text[1])
         predictions.extend(prediction)
         # Assuming that labels are inferred from text or dataset structure
         targets.extend(ground_truth_label_for_text(text))
