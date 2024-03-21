@@ -236,7 +236,7 @@ class SentimentAnalysis():
         text_tokens = torch.tensor(text_tokens)
 
         self.train_from_tensor(labels, text_tokens, epochs)
-
+    
 # Function to load a dataset from a given path, which can accept csv, json, or txt formats
         #FIXME: FIX LABEL/DATA ENTRIES FOR JSON AND TXT
 def load_dataset(dataset_path, format):
@@ -310,10 +310,10 @@ def main():
     predictions = []
     targets = []
     for text in test_texts:
-        prediction = sentiment_analysis.analyze(text[1])
-        predictions.extend(prediction)
+        prediction = sentiment_analysis.analyze(text[1]) #text is tuple of label and text, [1] for text
+        predictions.append(prediction)
         # Assuming that labels are inferred from text or dataset structure
-        targets.extend(ground_truth_label_for_text(text))
+        targets.append(ground_truth_label_for_text(text))
 
     # Calculate performance metrics
     accuracy = accuracy_score(targets, predictions)
