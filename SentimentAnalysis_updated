@@ -141,7 +141,7 @@ class SentimentAnalysis():
         self.vocab = self.build_vocab(dataloader)
 
         #Construct model based off of parameters
-        bag = nn.EmbeddingBag(num_embeddings=len(self.vocab), embedding_dim=embedding_width)
+        bag = nn.EmbeddingBag(num_embeddings=len(self.vocab), embedding_dim=embedding_width, mode="mean")
         #bag.to(data_type)
         network = CNNModel(architecture=model_type, input_size=embedding_width, output_size=num_classes)
         network.to(data_type)
@@ -174,8 +174,6 @@ class SentimentAnalysis():
         vocab.set_default_index(vocab["<unk>"])
         return vocab
     
-    
-    #FIXME currently does not work?
     def text_to_numerical(self, text):
         # Convert tokenized text to numerical representation using vocabulary
         numerical_representation = self.vocab(self.tokenize(text))
@@ -183,7 +181,6 @@ class SentimentAnalysis():
 
     def analyze(self, input_text: str):
         numerical_representation = self.text_to_numerical(input_text)
-        numerical_representation += [0] * (self.embedding_width - len(numerical_representation))
         input_tensor = torch.tensor(numerical_representation)
         output = self.model(input_tensor, torch.tensor([0]))
         positive_threshold = 0.7 
@@ -198,19 +195,7 @@ class SentimentAnalysis():
                 sentiment_labels.append("Neutral")
         return sentiment_labels
     
-    def train(self, train_dataloader, epochs=10):
-        #FIXME: convert train_dataloader entries from tuple to tensors
-        for epoch in range(epochs):
-            running_loss = 0.0
-            for labels, inputs in train_dataloader:
-                self.optimizer.zero_grad()
-                outputs = self.model(inputs)
-                loss = self.loss_function(outputs, labels)
-                loss.backward()
-                self.optimizer.step()
-                running_loss += loss.item()
-            print(f"Epoch {epoch+1}, Loss: {running_loss}")
-    
+    #Take a dataloader as input
     def train_from_dataloader(self, dataloader, epochs=10):
         for batch in dataloader:
             labels = batch[0].to(self.data_type)
@@ -223,6 +208,7 @@ class SentimentAnalysis():
             text_tokens = torch.tensor(text_tokens)
             self.train_from_tensor(labels, text_tokens, epochs)
 
+    #Takes tensors as input
     def train_from_tensor(self, labels, text_tokens, epochs=10):
         for epoch in range(epochs):
             self.optimizer.zero_grad() 
@@ -232,6 +218,7 @@ class SentimentAnalysis():
             loss.backward()
             self.optimizer.step()
 
+    #Takes raw dataset as input
     def train_from_dataset(self, dataset, epochs=10):
         #collect training values
         labels = []
