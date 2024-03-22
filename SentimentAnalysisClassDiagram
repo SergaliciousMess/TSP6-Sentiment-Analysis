@@ -14,10 +14,16 @@ model
 natural_language_processor
 }
 
+Class CNNModel {
+initialize(architecture, dimensions)
+model
+forward()
+}
+
 Class TextClassifier {
 forward()
 embedding_bag
-linear_layer
+fully_connected_layer
 }
 
 Class SAUI {
@@ -34,4 +40,5 @@ testing_data
 
 SAUI -* SentimentAnalysis : has 1
 SentimentAnalysis -* TextClassifier : has 1
+TextClassifier -* CNNModel : has 1
 @enduml
