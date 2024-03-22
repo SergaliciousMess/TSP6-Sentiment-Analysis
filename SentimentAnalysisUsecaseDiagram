@@ -17,10 +17,10 @@ u -- cm
 u -- lm
 u -- flag
 
-tm --> am : Includes
-tm --> lm : Includes
+tm ..> am : Includes
+tm ..> lm : Includes
 
-flag --> am : Includes
-flag --> amt : Includes
+flag ..> am : Includes
+flag ..> amt : Includes
 
 @enduml
