@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": "--dataset test_data.csv --epochs 5000"
+            "args": "--dataset test_data.csv --epochs 10000"
         }
     ]
 }
