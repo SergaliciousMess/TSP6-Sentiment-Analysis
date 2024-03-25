@@ -134,7 +134,7 @@ class TextClassifier(nn.Module):
         return self.network(self.bag(input, offsets))
 
 class SentimentAnalysis():
-    def __init__(self, dataloader, model_type='standard', embedding_width=64, num_classes=1, learning_rate=0.001, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss(), data_type = torch.float32, device = "cpu"):
+    def __init__(self, dataloader, model_type='standard', embedding_width=64, learning_rate=0.01, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss(), data_type = torch.float32, device = "cpu"):
         #Initialize nlp and build vocab
         torch.set_default_dtype(data_type)
         torch.set_default_device(device=device)
@@ -144,7 +144,7 @@ class SentimentAnalysis():
         #Construct model based off of parameters
         bag = nn.EmbeddingBag(num_embeddings=len(self.vocab), embedding_dim=embedding_width, mode="mean")
         bag.to(device=device)
-        network = CNNModel(architecture=model_type, input_size=embedding_width, output_size=num_classes)
+        network = CNNModel(architecture=model_type, input_size=embedding_width, output_size=1)
         network.to(data_type)
         network.to(device=device)
         self.model = TextClassifier(bag = bag, network = network)
@@ -177,18 +177,17 @@ class SentimentAnalysis():
         vocab.set_default_index(vocab["<unk>"])
         return vocab
     
-    def text_to_numerical(self, text):
+    def text_to_numerical(self, text, pad=False):
         # Convert tokenized text to numerical representation using vocabulary
         numerical_representation = self.vocab(self.tokenize(text))
+        if pad:
+            numerical_representation += [0] * (self.embedding_width - len(numerical_representation)) #pad with zeros to be 64 items long
         return numerical_representation
 
     def analyze(self, texts: list):
-        text_tokens = []
-        for text in texts:
-            numerical_representation = self.text_to_numerical(text)
-            numerical_representation += [0] * (self.embedding_width - len(numerical_representation)) #pad with zeros to be 64 items long
-            text_tokens.append(numerical_representation)
+        text_tokens = [self.text_to_numerical(text, pad=True) for text in texts]
         input_tensor = torch.tensor(text_tokens)
+
         output = self.model(input_tensor)
         positive_threshold = 0.7 
         negative_threshold = 0.3 
@@ -203,20 +202,15 @@ class SentimentAnalysis():
         return sentiment_labels
     
     #Take a dataloader as input
-    def train_from_dataloader(self, dataloader, epochs=10):
+    def train_from_dataloader(self, dataloader, epochs=2000):
         for batch in dataloader:
             labels = batch[0].to(self.data_type)
-
-            text_tokens = []
-            for text in batch[1]:
-                numerical_representation = self.text_to_numerical(text)
-                numerical_representation += [0] * (self.embedding_width - len(numerical_representation)) #pad with zeros to be 64 items long
-                text_tokens.append(numerical_representation)
+            text_tokens = [self.text_to_numerical(text, pad=True) for text in batch[1]]
             text_tokens = torch.tensor(text_tokens)
             self.train_from_tensor(labels, text_tokens, epochs)
 
     #Takes tensors as input
-    def train_from_tensor(self, labels, text_tokens, epochs=10):
+    def train_from_tensor(self, labels, text_tokens, epochs=2000):
         for epoch in range(epochs):
             self.optimizer.zero_grad() 
             predictions = self.model(text_tokens)
@@ -226,7 +220,7 @@ class SentimentAnalysis():
             self.optimizer.step()
 
     #Takes raw dataset as input
-    def train_from_dataset(self, dataset, epochs=10):
+    def train_from_dataset(self, dataset, epochs=2000):
         #collect training values
         labels = []
         text_tokens = []
@@ -234,8 +228,7 @@ class SentimentAnalysis():
             label = entry[0]
             labels.append(label)
             text = entry[1]
-            numerical_representation = self.text_to_numerical(text)
-            numerical_representation += [0] * (self.embedding_width - len(numerical_representation)) #pad with zeros to be 64 items long
+            numerical_representation = self.text_to_numerical(text, pad=True)
             text_tokens.append(numerical_representation)
 
         #convert isolated lists into tensors
@@ -282,5 +275,5 @@ dataloader = DataLoader(data, batch_size = 128, shuffle=True, generator=torch.Ge
 model = SentimentAnalysis(dataloader=dataloader, device=device)
 
 print("starting training")
-model.train_from_dataset(data, epochs=2000)
-print(model.analyze(['i love life', 'i hate life']))
+model.train_from_dataset(data, epochs=5000)
+print(model.analyze(['i love life', 'i hate life',]))
