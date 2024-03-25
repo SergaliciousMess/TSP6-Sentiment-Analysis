@@ -134,21 +134,24 @@ class TextClassifier(nn.Module):
         return self.network(self.bag(input, offsets))
 
 class SentimentAnalysis():
-    def __init__(self, dataloader, model_type='standard', embedding_width=64, num_classes=1, learning_rate=0.001, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss(), data_type = torch.float32):
+    def __init__(self, dataloader, model_type='standard', embedding_width=64, num_classes=1, learning_rate=0.001, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss(), data_type = torch.float32, device = "cpu"):
         #Initialize nlp and build vocab
         torch.set_default_dtype(data_type)
+        torch.set_default_device(device=device)
         self.nlp = spacy.load('en_core_web_sm')
         self.vocab = self.build_vocab(dataloader)
 
         #Construct model based off of parameters
         bag = nn.EmbeddingBag(num_embeddings=len(self.vocab), embedding_dim=embedding_width, mode="mean")
-        #bag.to(data_type)
+        bag.to(device=device)
         network = CNNModel(architecture=model_type, input_size=embedding_width, output_size=num_classes)
         network.to(data_type)
+        network.to(device=device)
         self.model = TextClassifier(bag = bag, network = network)
         
         #store some important variables
         self.data_type = data_type
+        self.device = device
         self.embedding_width = embedding_width
 
         # Initialize optimizer and loss function
@@ -264,3 +267,16 @@ def load_dataset(dataset_path, format):
         return dataset
     else:
         raise ValueError("Unsupported dataset format. Supported formats: 'csv', 'json', 'txt'")
+
+
+
+data = load_dataset('test_data.csv', 'csv')
+
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
+dataloader = DataLoader(data, batch_size = 128, shuffle=True, generator=torch.Generator(device=device))
+
+model = SentimentAnalysis(dataloader=dataloader, device=device)
+
+print("starting training")
+model.train_from_dataset(data, epochs=2000)
+print(model.analyze('i love life'))
