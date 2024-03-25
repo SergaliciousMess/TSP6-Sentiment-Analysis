@@ -182,10 +182,14 @@ class SentimentAnalysis():
         numerical_representation = self.vocab(self.tokenize(text))
         return numerical_representation
 
-    def analyze(self, input_text: str):
-        numerical_representation = self.text_to_numerical(input_text)
-        input_tensor = torch.tensor(numerical_representation)
-        output = self.model(input_tensor, torch.tensor([0]))
+    def analyze(self, texts: list):
+        text_tokens = []
+        for text in texts:
+            numerical_representation = self.text_to_numerical(text)
+            numerical_representation += [0] * (self.embedding_width - len(numerical_representation)) #pad with zeros to be 64 items long
+            text_tokens.append(numerical_representation)
+        input_tensor = torch.tensor(text_tokens)
+        output = self.model(input_tensor)
         positive_threshold = 0.7 
         negative_threshold = 0.3 
         sentiment_labels = []
@@ -279,4 +283,4 @@ model = SentimentAnalysis(dataloader=dataloader, device=device)
 
 print("starting training")
 model.train_from_dataset(data, epochs=2000)
-print(model.analyze('i love life'))
+print(model.analyze(['i love life', 'i hate life']))
