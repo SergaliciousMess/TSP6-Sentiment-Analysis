@@ -180,8 +180,11 @@ class SentimentAnalysis():
     def text_to_numerical(self, text, pad=False):
         # Convert tokenized text to numerical representation using vocabulary
         numerical_representation = self.vocab(self.tokenize(text))
-        if pad:
+        length = len(numerical_representation)
+        if pad and length < self.embedding_width:
             numerical_representation += [0] * (self.embedding_width - len(numerical_representation)) #pad with zeros to be 64 items long
+        if length > self.embedding_width:
+            numerical_representation = numerical_representation[0:self.embedding_width]
         return numerical_representation
 
     def analyze(self, texts: list):
@@ -276,4 +279,4 @@ model = SentimentAnalysis(dataloader=dataloader, device=device)
 
 print("starting training")
 model.train_from_dataset(data, epochs=5000)
-print(model.analyze(['i love life', 'i hate life',]))
+print(model.analyze(['I love life!','I hate life!']))
