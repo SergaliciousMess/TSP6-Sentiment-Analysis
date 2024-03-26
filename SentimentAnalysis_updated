@@ -134,7 +134,7 @@ class TextClassifier(nn.Module):
         return self.network(self.bag(input, offsets))
 
 class SentimentAnalysis():
-    def __init__(self, dataloader, model_type='standard', embedding_width=64, learning_rate=0.01, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss(), data_type = torch.float32, device = "cpu"):
+    def __init__(self, dataloader, model_type='standard', embedding_width=64, learning_rate=0.1, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss(), data_type = torch.float32, device = "cpu"):
         #Initialize nlp and build vocab
         torch.set_default_dtype(data_type)
         torch.set_default_device(device=device)
@@ -177,68 +177,69 @@ class SentimentAnalysis():
         vocab.set_default_index(vocab["<unk>"])
         return vocab
     
-    def text_to_numerical(self, text, pad=False):
+    def text_to_numerical(self, text):
         # Convert tokenized text to numerical representation using vocabulary
         numerical_representation = self.vocab(self.tokenize(text))
-        length = len(numerical_representation)
-        if pad and length < self.embedding_width:
-            numerical_representation += [0] * (self.embedding_width - len(numerical_representation)) #pad with zeros to be 64 items long
-        if length > self.embedding_width:
-            numerical_representation = numerical_representation[0:self.embedding_width]
         return numerical_representation
 
     def analyze(self, texts: list):
-        text_tokens = [self.text_to_numerical(text, pad=True) for text in texts]
-        input_tensor = torch.tensor(text_tokens)
+        self.model.eval()
+        with torch.no_grad():
+            
+            offsets = [0] #starting index
+            i = 0
+            text_tokens = []
+            for text in texts:
+                numeric = self.text_to_numerical(text)
+                text_tokens.append(torch.tensor(numeric))
+                i += len(numeric)
+                offsets.append(i)
+            offsets.pop()
+            text_tokens = torch.cat(text_tokens)
+            offsets = torch.tensor(offsets)
 
-        output = self.model(input_tensor)
-        positive_threshold = 0.7 
-        negative_threshold = 0.3 
-        sentiment_labels = []
-        for probability in output:
-            if probability >= positive_threshold:
-                sentiment_labels.append("Positive")
-            elif probability <= negative_threshold:
-                sentiment_labels.append("Negative")
-            else:
-                sentiment_labels.append("Neutral")
-        return sentiment_labels
-    
+            output = torch.flatten(self.model(text_tokens, offsets))
+
+
+            positive_threshold = 0.7 
+            negative_threshold = 0.3 
+            sentiment_labels = []
+            for probability in output:
+                if probability >= positive_threshold:
+                    sentiment_labels.append("Positive")
+                elif probability <= negative_threshold:
+                    sentiment_labels.append("Negative")
+                else:
+                    sentiment_labels.append("Neutral")
+            return sentiment_labels
+
     #Take a dataloader as input
     def train_from_dataloader(self, dataloader, epochs=2000):
         for batch in dataloader:
             labels = batch[0].to(self.data_type)
-            text_tokens = [self.text_to_numerical(text, pad=True) for text in batch[1]]
-            text_tokens = torch.tensor(text_tokens)
-            self.train_from_tensor(labels, text_tokens, epochs)
+            offsets = [0] #starting index
+            i = 0
+            text_tokens = []
+            for text in batch[1]:
+                numeric = self.text_to_numerical(text)
+                text_tokens.append(torch.tensor(numeric))
+                i += len(numeric)
+                offsets.append(i)
+            offsets.pop()
+            text_tokens = torch.cat(text_tokens)
+            offsets = torch.tensor(offsets)
+            self.train_from_tensor(labels, text_tokens, offsets, epochs)
 
     #Takes tensors as input
-    def train_from_tensor(self, labels, text_tokens, epochs=2000):
+    def train_from_tensor(self, labels, text_tokens, offsets, epochs=2000):
+        self.model.train()
         for epoch in range(epochs):
             self.optimizer.zero_grad() 
-            predictions = self.model(text_tokens)
+            predictions = self.model(text_tokens, offsets)
             predictions = torch.flatten(predictions)
             loss = self.loss_function(predictions, labels)
             loss.backward()
             self.optimizer.step()
-
-    #Takes raw dataset as input
-    def train_from_dataset(self, dataset, epochs=2000):
-        #collect training values
-        labels = []
-        text_tokens = []
-        for entry in dataset:
-            label = entry[0]
-            labels.append(label)
-            text = entry[1]
-            numerical_representation = self.text_to_numerical(text, pad=True)
-            text_tokens.append(numerical_representation)
-
-        #convert isolated lists into tensors
-        labels = torch.tensor(labels).to(self.data_type)
-        text_tokens = torch.tensor(text_tokens)
-
-        self.train_from_tensor(labels, text_tokens, epochs)
     
 # Function to load a dataset from a given path, which can accept csv, json, or txt formats
         #FIXME: FIX LABEL/DATA ENTRIES FOR JSON AND TXT
@@ -277,6 +278,6 @@ dataloader = DataLoader(data, batch_size = 128, shuffle=True, generator=torch.Ge
 
 model = SentimentAnalysis(dataloader=dataloader, device=device)
 
-print("starting training")
-model.train_from_dataset(data, epochs=5000)
-print(model.analyze(['I love life!','I hate life!']))
+print("starting training: " + device)
+model.train_from_dataloader(dataloader=dataloader, epochs=5000)
+print(model.analyze(['I love life!','I hate life!','monday, am i right',"weather is looking pretty good today"]))
