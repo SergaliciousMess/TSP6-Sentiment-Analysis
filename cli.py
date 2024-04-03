@@ -1,5 +1,5 @@
 import argparse
-from . import SentimentAnalysis_updated
+from . import SentimentAnalysis
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 class cli:
     def main():
@@ -24,8 +24,8 @@ class cli:
         print(f"Positive Threshold: {args.positive_threshold}")
         print(f"Negative Threshold: {args.negative_threshold}")
     
-        s = SentimentAnalysis_updated.SentimentAnalysis()
-        m = SentimentAnalysis_updated.CNNModel()
+        s = SentimentAnalysis.SentimentAnalysis()
+        m = SentimentAnalysis.CNNModel()
     
         # Load dataset from the specified file path
         dataset = s.load_dataset(args.dataset, 'csv')  # Hardcoding and assuming CSV format for now
