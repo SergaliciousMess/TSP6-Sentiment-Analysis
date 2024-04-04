@@ -1,153 +1,175 @@
-'''
-    @author SergaliciousMess
-    @author emyasenc
-    
-    Description: an edited verison of primary Python file for the sentiment analysis class, originally commited from @author SergaliciousMess
-                 Note: The following are further tasks to take into consideration for the CNN model for this class:
-                 
-                Neutral Sentiment: Define a clear criterion for neutral sentiment. It's a subjective decision and may require additional analysis of the dataset (when we acquire the labeled data).
-                Evaluation Metrics: Consider implementing evaluation metrics such as accuracy, precision, recall, and F1-score to assess model performance during training and testing.
-                Hyperparameter Tuning: Experiment with different hyperparameters such as learning rate, batch size, and model architecture to improve model performance.
-                Error Handling: Implement error handling mechanisms to gracefully handle exceptions and errors during data processing and model training.
-                
-                
-Downlaod spacy to your device before running:                
-To use spacy in Python code, install the library using pip:
-pip install spacy
+"""
+@author SergaliciousMess
+@author emyasenc
+@author SunOfLife1
 
-Also need to download language models for the languages one intends to process. For example, download the English language model using the following command:
-python -m spacy download en_core_web_sm
-   '''
+Description: an edited verison of primary Python file for the sentiment analysis class,
+             originally commited from SergaliciousMess
+
+             The following are further tasks to take into consideration for CNNModel:
+
+             Neutral Sentiment: Define a clear criterion for neutral sentiment.
+                                It's a subjective decision and may require additional
+                                analysis of the dataset (when we acquire the labeled data).
+
+             Evaluation Metrics: Consider implementing evaluation metrics such as accuracy,
+                                 precision, recall, and F1-score to assess model performance
+                                 during training and testing.
+
+             Hyperparameter Tuning: Experiment with different hyperparameters such as
+                                    learning rate, batch size, and model architecture to
+                                    improve model performance.
+
+             Error Handling: Implement error handling mechanisms to gracefully handle
+                             exceptions and errors during data processing and model training.
+"""
 
 import csv
 import json
-import torch
+
 import spacy
-import torch.nn.functional as F
+import torch
+from sklearn.metrics import (accuracy_score, f1_score, precision_score,
+                             recall_score)
+from sklearn.model_selection import train_test_split
 from torch import nn
 from torch.utils.data import DataLoader
+from torchtext.data.functional import to_map_style_dataset
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
-from torchtext.data.functional import to_map_style_dataset
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
-#device- desired device for computations
-#data_type- desired number format
-#optimizer- lambda function for desired pytorch optimization algorithm
-#learning_rate- desired learning rate for optimization
-#loss_function- lambda function for desired pytorch loss calculation algorithm
+# device- desired device for computations
+# data_type- desired number format
+# optimizer- lambda function for desired pytorch optimization algorithm
+# learning_rate- desired learning rate for optimization
+# loss_function- lambda function for desired pytorch loss calculation algorithm
 
-def ground_truth_label_for_text(text):
+
+def ground_truth_label_for_text(text: tuple):
     # Assuming each text sample is a tuple where the label is the first element
     return text[0]
 
+
 class CNNModel(nn.Module):
-    def __init__(self, architecture='standard', input_size=64, output_size=1):
+    def __init__(self, architecture: str = 'standard', input_size: int = 64, output_size: int = 1):
         super(CNNModel, self).__init__()
         self.architecture = architecture
         # Define the CNN architecture based on the chosen type
-        if architecture == 'standard':
-            self.model = nn.Sequential(
-                nn.Linear(input_size, output_size),
-                nn.Sigmoid()
-            )
-        elif architecture == '1d':
-            self.model = nn.Sequential(
-                nn.Conv1d(in_channels=input_size, out_channels=64, kernel_size=3),
-                nn.MaxPool1d(kernel_size=2),
-                nn.Flatten(),
-                nn.Linear(64 * ((input_size - 2) // 2), output_size),
-                nn.Sigmoid()
-            )
-        elif architecture == 'wide':
-            self.model = nn.Sequential(
-                nn.Conv1d(in_channels=input_size, out_channels=128, kernel_size=5),  # Increase out_channels for wider architecture
-                nn.MaxPool1d(kernel_size=2),
-                nn.Flatten(),
-                nn.Linear(128 * ((input_size - 4) // 2), output_size),  # Adjust input_size calculation for wider architecture
-                nn.Sigmoid()
-            )
-        elif architecture == 'deep':
-            self.model = nn.Sequential(
-                nn.Conv1d(in_channels=input_size, out_channels=64, kernel_size=3),
-                nn.ReLU(),
-                nn.Conv1d(in_channels=64, out_channels=64, kernel_size=3),
-                nn.ReLU(),
-                nn.MaxPool1d(kernel_size=2),
-                nn.Flatten(),
-                nn.Linear(64 * ((input_size - 2) // 2), output_size),
-                nn.Sigmoid()
-            )
-        elif architecture == 'dilated':
-            self.model = nn.Sequential(
-                nn.Conv1d(in_channels=input_size, out_channels=64, kernel_size=3, dilation=2),
-                nn.MaxPool1d(kernel_size=2),
-                nn.Flatten(),
-                nn.Linear(64 * ((input_size - 4) // 2), output_size),
-                nn.Sigmoid()
-            )
-        elif architecture == 'parallel':
-            self.conv1 = nn.Conv1d(in_channels=input_size, out_channels=32, kernel_size=3)
-            self.conv2 = nn.Conv1d(in_channels=input_size, out_channels=32, kernel_size=5)
-            self.conv3 = nn.Conv1d(in_channels=input_size, out_channels=32, kernel_size=7)
-            self.pool = nn.MaxPool1d(kernel_size=2)
-            self.fc = nn.Linear(32 * ((input_size - 6) // 2), output_size)
+        match architecture:
+            case 'standard':
+                self.model = nn.Sequential(
+                    nn.Linear(input_size, output_size),
+                    nn.Sigmoid()
+                )
+            case '1d':
+                self.model = nn.Sequential(
+                    nn.Conv1d(in_channels=input_size, out_channels=64, kernel_size=3),
+                    nn.MaxPool1d(kernel_size=2),
+                    nn.Flatten(),
+                    nn.Linear(64 * ((input_size - 2) // 2), output_size),
+                    nn.Sigmoid()
+                )
+            case 'wide':
+                self.model = nn.Sequential(
+                    nn.Conv1d(in_channels=input_size, out_channels=128, kernel_size=5),  # Increase out_channels for wider architecture
+                    nn.MaxPool1d(kernel_size=2),
+                    nn.Flatten(),
+                    nn.Linear(128 * ((input_size - 4) // 2), output_size),  # Adjust input_size calculation for wider architecture
+                    nn.Sigmoid()
+                )
+            case 'deep':
+                self.model = nn.Sequential(
+                    nn.Conv1d(in_channels=input_size, out_channels=64, kernel_size=3),
+                    nn.ReLU(),
+                    nn.Conv1d(in_channels=64, out_channels=64, kernel_size=3),
+                    nn.ReLU(),
+                    nn.MaxPool1d(kernel_size=2),
+                    nn.Flatten(),
+                    nn.Linear(64 * ((input_size - 2) // 2), output_size),
+                    nn.Sigmoid()
+                )
+            case 'dilated':
+                self.model = nn.Sequential(
+                    nn.Conv1d(in_channels=input_size, out_channels=64, kernel_size=3, dilation=2),
+                    nn.MaxPool1d(kernel_size=2),
+                    nn.Flatten(),
+                    nn.Linear(64 * ((input_size - 4) // 2), output_size),
+                    nn.Sigmoid()
+                )
+            case 'parallel':
+                self.conv1 = nn.Conv1d(in_channels=input_size, out_channels=32, kernel_size=3)
+                self.conv2 = nn.Conv1d(in_channels=input_size, out_channels=32, kernel_size=5)
+                self.conv3 = nn.Conv1d(in_channels=input_size, out_channels=32, kernel_size=7)
+                self.pool = nn.MaxPool1d(kernel_size=2)
+                self.fc = nn.Linear(32 * ((input_size - 6) // 2), output_size)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         if hasattr(self, 'model'):
             return self.model(x)
-        elif hasattr(self, 'conv1'):
+
+        if hasattr(self, 'conv1'):
             # Apply convolutional operations followed by ReLU activation
-            x1 = F.relu(self.conv1(x))  # Apply convolution and ReLU activation to input x
-            x2 = F.relu(self.conv2(x))  # Apply convolution and ReLU activation to input x
-            x3 = F.relu(self.conv3(x))  # Apply convolution and ReLU activation to input x
-        
+            x1 = nn.functional.relu(self.conv1(x))
+            x2 = nn.functional.relu(self.conv2(x))
+            x3 = nn.functional.relu(self.conv3(x))
+
             # Apply max pooling to reduce spatial dimensions
-            x1 = self.pool(x1)  # Apply max pooling to the conv1 result
-            x2 = self.pool(x2)  # Apply max pooling to the conv2 result
-            x3 = self.pool(x3)  # Apply max pooling to the conv3 result
-        
+            x1 = self.pool(x1)
+            x2 = self.pool(x2)
+            x3 = self.pool(x3)
+
             # Concatenate the pooled feature maps along the channel dimension
-            x = torch.cat((x1, x2, x3), dim=1)  # Concatenate the pooled feature maps along the channel dimension
-        
+            x = torch.cat((x1, x2, x3), dim=1)
+
             # Flatten the concatenated feature maps
-            x = x.view(x.size(0), -1)  # Flatten the concatenated feature maps
-        
-            # Apply fully connected layer
-            x = self.fc(x)  # Apply fully connected layer to the flattened feature maps
-        
+            x = x.view(x.size(0), -1)
+
+            # Apply fully connected layer to the flattened feature maps
+            x = self.fc(x)
+
             # Apply sigmoid activation function to the output
-            return torch.sigmoid(x)  # Apply sigmoid activation function to the output
-        
+            return torch.sigmoid(x)
+
         return self.model(x)
 
+
 class TextClassifier(nn.Module):
-    def __init__(self, bag, network):
+    def __init__(self, bag: nn.EmbeddingBag, network: CNNModel):
         super(TextClassifier, self).__init__()
         self.bag = bag
         self.network = network
 
-    def forward(self, input, offsets=None):
+    def forward(self, input: torch.Tensor, offsets: torch.Tensor | None = None) -> torch.Tensor:
         return self.network(self.bag(input, offsets))
 
+
 class SentimentAnalysis():
-    def __init__(self, dataloader, model_type='standard', embedding_width=64, learning_rate=0.1, optimizer=torch.optim.Adam, loss_function=nn.CrossEntropyLoss(), data_type = torch.float32, device = "cpu"):
-        #Initialize nlp and build vocab
+    def __init__(
+        self,
+        dataloader,
+        model_type: str = 'standard',
+        embedding_width: int = 64,
+        learning_rate: float = 0.1,
+        optimizer: torch.optim.Optimizer = torch.optim.Adam,
+        loss_function = nn.CrossEntropyLoss(),
+        data_type = torch.float32,
+        device: str = "cpu"
+    ):
+        # Initialize nlp and build vocab
         torch.set_default_dtype(data_type)
         torch.set_default_device(device=device)
         self.nlp = spacy.load('en_core_web_sm')
         self.vocab = self.build_vocab(dataloader)
 
-        #Construct model based off of parameters
+        # Construct model based off of parameters
         bag = nn.EmbeddingBag(num_embeddings=len(self.vocab), embedding_dim=embedding_width, mode="mean")
         bag.to(device=device)
         network = CNNModel(architecture=model_type, input_size=embedding_width, output_size=1)
         network.to(data_type)
         network.to(device=device)
         self.model = TextClassifier(bag = bag, network = network)
-        
-        #store some important variables
+
+        # Store some important variables
         self.data_type = data_type
         self.device = device
         self.embedding_width = embedding_width
@@ -157,34 +179,32 @@ class SentimentAnalysis():
         self.optimizer = optimizer(self.model.parameters(), lr=learning_rate)
         self.loss_function = loss_function
 
-    def tokenize(self, text : str):
+    def tokenize(self, text : str) -> list[str]:
         # Tokenization logic using spaCy
         doc = self.nlp(text)
         tokens = [token.lemma_.lower().strip() for token in doc if not token.is_stop and not token.is_punct]
         return tokens
-    
+
     def yield_tokens(self, dataloader):
         for batch in dataloader:
             for text in batch[1]:
                 yield self.tokenize(text)
-
 
     def build_vocab(self, dataloader):
         # Build vocabulary from the tokenized data
         vocab = build_vocab_from_iterator(self.yield_tokens(dataloader), specials=["<unk>"])
         vocab.set_default_index(vocab["<unk>"])
         return vocab
-    
-    def text_to_numerical(self, text):
-        # Convert tokenized text to numerical representation using vocabulary
+
+    def text_to_numerical(self, text: str):
+        """Convert tokenized text to numerical representation using vocabulary"""
         numerical_representation = self.vocab(self.tokenize(text))
         return numerical_representation
 
     def analyze(self, texts: list):
         self.model.eval()
         with torch.no_grad():
-            
-            offsets = [0] #starting index
+            offsets = [0]  # starting index
             i = 0
             text_tokens = []
             for text in texts:
@@ -198,9 +218,8 @@ class SentimentAnalysis():
 
             output = torch.flatten(self.model(text_tokens, offsets))
 
-
-            positive_threshold = 0.7 
-            negative_threshold = 0.3 
+            positive_threshold = 0.7
+            negative_threshold = 0.3
             sentiment_labels = []
             for probability in output:
                 if probability >= positive_threshold:
@@ -211,11 +230,11 @@ class SentimentAnalysis():
                     sentiment_labels.append("Neutral")
             return sentiment_labels
 
-    #Take a dataloader as input
+    # Takes a dataloader as input
     def train_from_dataloader(self, dataloader, epochs=2000):
         for batch in dataloader:
             labels = batch[0].to(self.data_type)
-            offsets = [0] #starting index
+            offsets = [0]  # starting index
             i = 0
             text_tokens = []
             for text in batch[1]:
@@ -228,44 +247,42 @@ class SentimentAnalysis():
             offsets = torch.tensor(offsets)
             self.train_from_tensor(labels, text_tokens, offsets, epochs)
 
-    #Takes tensors as input
+    # Takes tensors as input
     def train_from_tensor(self, labels, text_tokens, offsets, epochs=2000):
         self.model.train()
         for epoch in range(epochs):
-            self.optimizer.zero_grad() 
+            self.optimizer.zero_grad()
             predictions = self.model(text_tokens, offsets)
             predictions = torch.flatten(predictions)
             loss = self.loss_function(predictions, labels)
             loss.backward()
             self.optimizer.step()
-    
-# Function to load a dataset from a given path, which can accept csv, json, or txt formats
-        #FIXME: FIX LABEL/DATA ENTRIES FOR JSON AND TXT
-def load_dataset(dataset_path, format):
-    if format == 'csv':
-        dataset = []
-        with open(dataset_path, 'r', encoding='utf-8') as file:
-            csv_reader = csv.reader(file)
-            for row in csv_reader:
+
+
+# FIXME(Dalton): FIX LABEL/DATA ENTRIES FOR JSON AND TXT
+def load_dataset(dataset_path, file_format: str):
+    """Loads a dataset from a given path. Accepts CSV, JSON, and TXT formats."""
+    dataset = []
+    match file_format:
+        case 'csv':
+            with open(dataset_path, 'r', encoding='utf-8') as file:
+                csv_reader = csv.reader(file)
                 # Assuming each row represents a sample
-                dataset.append( (int(row[0]), row[1].strip()) )  # Assuming the text is in the second column
-        return dataset
-    elif format == 'json':
-        dataset = []
-        with open(dataset_path, 'r', encoding='utf-8') as file:
-            json_data = json.load(file)
-            for item in json_data:
+                for row in csv_reader:
+                    # Assuming the text is in the second column
+                    dataset.append((int(row[0]), row[1].strip()))
+        case 'json':
+            with open(dataset_path, 'r', encoding='utf-8') as file:
+                json_data = json.load(file)
                 # Assuming each item represents a sample
-                dataset.append(item['text'].strip())  # Assuming the text is stored under the key 'text'
-        return dataset
-    elif format == 'txt':
-        dataset = []
-        with open(dataset_path, 'r', encoding='utf-8') as file:
-            for line in file:
-                dataset.append(line.strip())
-        return dataset
-    else:
-        raise ValueError("Unsupported dataset format. Supported formats: 'csv', 'json', 'txt'")
+                for item in json_data:
+                    # Assuming the text is stored under the key 'text'
+                    dataset.append(item['text'].strip())
+        case 'txt':
+            with open(dataset_path, 'r', encoding='utf-8') as file:
+                for line in file:
+                    dataset.append(line.strip())
+        case _:
+            raise ValueError("Unsupported dataset format. Supported formats: 'csv', 'json', 'txt'")
 
-
-
+    return dataset
