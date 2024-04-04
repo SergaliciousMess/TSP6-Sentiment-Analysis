@@ -2,7 +2,7 @@
 
 ## Dependencies
 
-Requires [Python 3.10.11](https://www.python.org/downloads/release/python-31011/), spaCy, PyTorch, Torchtext, and scikit-learn.
+Requires [Python 3.10.11](https://www.python.org/downloads/release/python-31011/), spaCy, PyTorch, Torchtext, and scikit-learn. When installing Python 3.10.11, make sure the box for "tcl/tk and IDLE" is checked.
 
 Install spaCy with pip:
 
