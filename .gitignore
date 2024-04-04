@@ -1,0 +1,5 @@
+# Ignore the .venv folder (for virtual environments, if anyone is using it) (I (Yasmin) am)
+.venv
+
+# Ignore the __pycache__ folder
+__pycache__
