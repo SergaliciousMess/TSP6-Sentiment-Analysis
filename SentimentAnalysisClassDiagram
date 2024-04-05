@@ -3,11 +3,11 @@
 Class SentimentAnalysis{
 analyzeMessage(message)
 train(dataloader)
-train(raw_dataset)
-train(tensors)
-build_vocab(data)
+build_vocab(dataloader)
 tokenize(one_word_string)
 text_to_numerical(string_list)
+save()
+load()
 
 
 model
@@ -26,7 +26,7 @@ embedding_bag
 fully_connected_layer
 }
 
-Class SAUI {
+Class SAGUI {
 display_options()
 create_new_model(model_parameters)
 save_model()
@@ -38,7 +38,20 @@ training_data
 testing_data
 }
 
-SAUI -* SentimentAnalysis : has 1
+Class CLI{
+display_options()
+create_new_model(model_parameters)
+save_model()
+load_model()
+train()
+analyze(message)
+sentiment_analysis_model
+training_data
+testing_data
+}
+
+SAGUI -* SentimentAnalysis : has 1
+CLI-* SentimentAnalysis : has 1
 SentimentAnalysis -* TextClassifier : has 1
 TextClassifier -* CNNModel : has 1
 @enduml
