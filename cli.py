@@ -1,8 +1,16 @@
+"""
+@author emyasenc
+@author SunOfLife1
+
+Description: _desc_
+"""
+
 import argparse
-from sklearn import model_selection
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn import metrics, model_selection
 from torch.utils.data import DataLoader
-from SentimentAnalysis import SentimentAnalysis, load_dataset, ground_truth_label_for_text
+from SentimentAnalysis import (SentimentAnalysis, ground_truth_label_for_text,
+                               load_dataset)
+
 
 def main():
     # Parse command-line arguments
@@ -16,7 +24,7 @@ def main():
     parser.add_argument('--negative-threshold', type=float, default=0.3, help='Threshold for classifying as Negative (default: 0.3)')
     
     # Add the '--delimiter' argument. Only needed for .txt dataset files
-    parser.add_argument('--delimiter', type=str, default=',', help='Delimiter used in the TXT dataset file (default: comma)')
+    parser.add_argument('--delimiter', type=str, default=',', help='Delimiter used for .txt dataset files (default: ",")')
 
     args = parser.parse_args()
 
@@ -30,7 +38,8 @@ def main():
     print(f"Negative Threshold: {args.negative_threshold}")
 
     # Load dataset from the specified file path
-    dataset = load_dataset(args.dataset, 'csv', '')  # Hardcoding and assuming CSV format for now
+    # TODO(SunOfLife1): extract dataset file extension from file name
+    dataset = load_dataset(args.dataset, 'csv')
 
     # Split the dataset into training and testing sets
     train_texts, test_texts = model_selection.train_test_split(dataset, test_size=0.2, random_state=42)
@@ -38,26 +47,26 @@ def main():
     # Create dataloader for training data
     train_dataloader = DataLoader(train_texts, batch_size=args.batch_size)
 
-    # Initialize SentimentAnalysis with the selected model
-    sentiment_analysis = SentimentAnalysis(dataloader=train_dataloader, model_type=args.architecture, learning_rate=args.learning_rate)
+    # Initialize the model with the inputted arguments
+    model = SentimentAnalysis(dataloader=train_dataloader, model_type=args.architecture, learning_rate=args.learning_rate)
 
     # Train the model
-    sentiment_analysis.train_from_dataloader(train_dataloader, epochs=args.epochs)
+    model.train_from_dataloader(train_dataloader, epochs=args.epochs)
 
     # Evaluate the model
     predictions = []
     targets = []
     for text in test_texts:
-        prediction = sentiment_analysis.analyze([text[1]])
+        prediction = model.analyze([text[1]])
         predictions.extend(prediction)
         # Assuming that labels are inferred from text or dataset structure
         targets.append(ground_truth_label_for_text(text))
 
     # # Calculate performance metrics
-    # accuracy = accuracy_score(targets, predictions)
-    # precision = precision_score(targets, predictions, average='weighted')
-    # recall = recall_score(targets, predictions, average='weighted')
-    # f1 = f1_score(targets, predictions, average='weighted')
+    # accuracy = metrics.accuracy_score(targets, predictions)
+    # precision = metrics.precision_score(targets, predictions, average='weighted')
+    # recall = metrics.recall_score(targets, predictions, average='weighted')
+    # f1 = metrics.f1_score(targets, predictions, average='weighted')
 
     # # Print performance metrics
     # print(f"Accuracy: {accuracy}")

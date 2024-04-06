@@ -285,8 +285,8 @@ class SentimentAnalysis():
             print(f"Error during training from tensor: {e}")
 
 
-# FIXME(Dalton): FIX LABEL/DATA ENTRIES FOR JSON AND TXT
-def load_dataset(dataset_path, file_format: str, delimiter: str): # Added delimiter in the function parameter for .txt
+# FIXME(SergaliciousMess): FIX LABEL/DATA ENTRIES FOR JSON AND TXT
+def load_dataset(dataset_path, file_format: str, delimiter: str = ","): # Added delimiter in the function parameter for .txt
     """Loads a dataset from a given path. Accepts CSV, JSON, and TXT formats."""
     dataset = []
     match file_format:
