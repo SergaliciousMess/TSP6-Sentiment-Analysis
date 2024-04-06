@@ -155,35 +155,43 @@ class SentimentAnalysis():
         data_type = torch.float32,
         device: str = "cpu"
     ):
-        # Initialize nlp and build vocab
-        torch.set_default_dtype(data_type)
-        torch.set_default_device(device=device)
-        self.nlp = spacy.load('en_core_web_sm')
-        self.vocab = self.build_vocab(dataloader)
+        try:
+            # Initialize nlp and build vocab
+            torch.set_default_dtype(data_type)
+            torch.set_default_device(device=device)
+            self.nlp = spacy.load('en_core_web_sm')
+            self.vocab = self.build_vocab(dataloader)
 
-        # Construct model based off of parameters
-        bag = nn.EmbeddingBag(num_embeddings=len(self.vocab), embedding_dim=embedding_width, mode="mean")
-        bag.to(device=device)
-        network = CNNModel(architecture=model_type, input_size=embedding_width, output_size=1)
-        network.to(data_type)
-        network.to(device=device)
-        self.model = TextClassifier(bag = bag, network = network)
+            # Construct model based off of parameters
+            bag = nn.EmbeddingBag(num_embeddings=len(self.vocab), embedding_dim=embedding_width, mode="mean")
+            bag.to(device=device)
+            network = CNNModel(architecture=model_type, input_size=embedding_width, output_size=1)
+            network.to(data_type)
+            network.to(device=device)
+            self.model = TextClassifier(bag = bag, network = network)
 
-        # Store some important variables
-        self.data_type = data_type
-        self.device = device
-        self.embedding_width = embedding_width
+            # Store some important variables
+            self.data_type = data_type
+            self.device = device
+            self.embedding_width = embedding_width
 
-        # Initialize optimizer and loss function
-        self.learning_rate = learning_rate
-        self.optimizer = optimizer(self.model.parameters(), lr=learning_rate)
-        self.loss_function = loss_function
+            # Initialize optimizer and loss function
+            self.learning_rate = learning_rate
+            self.optimizer = optimizer(self.model.parameters(), lr=learning_rate)
+            self.loss_function = loss_function
+        except Exception as e:
+            print(f"Error occurred during initialization: {e}")
+            raise
 
     def tokenize(self, text : str) -> list[str]:
         # Tokenization logic using spaCy
-        doc = self.nlp(text)
-        tokens = [token.lemma_.lower().strip() for token in doc if not token.is_stop and not token.is_punct]
-        return tokens
+        try:
+            doc = self.nlp(text)
+            tokens = [token.lemma_.lower().strip() for token in doc if not token.is_stop and not token.is_punct]
+            return tokens
+        except Exception as e:
+            print(f"Error occurred during tokenization: {e}")
+            raise
 
     def yield_tokens(self, dataloader):
         for batch in dataloader:
@@ -192,75 +200,93 @@ class SentimentAnalysis():
 
     def build_vocab(self, dataloader):
         # Build vocabulary from the tokenized data
-        vocab = build_vocab_from_iterator(self.yield_tokens(dataloader), specials=["<unk>"])
-        vocab.set_default_index(vocab["<unk>"])
-        return vocab
+        try:
+            vocab = build_vocab_from_iterator(self.yield_tokens(dataloader), specials=["<unk>"])
+            vocab.set_default_index(vocab["<unk>"])
+            return vocab
+        except Exception as e:
+            print(f"Error occurred during vocabulary building: {e}")
+            raise
 
     def text_to_numerical(self, text: str):
         """Convert tokenized text to numerical representation using vocabulary"""
-        numerical_representation = self.vocab(self.tokenize(text))
-        return numerical_representation
+        try:
+            numerical_representation = self.vocab(self.tokenize(text))
+            return numerical_representation
+        except Exception as e:
+            print(f"Error occurred during text to numerical conversion: {e}")
+            raise
 
     def analyze(self, texts: list):
-        self.model.eval()
-        with torch.no_grad():
-            offsets = [0]  # starting index
-            i = 0
-            text_tokens = []
-            for text in texts:
-                numeric = self.text_to_numerical(text)
-                text_tokens.append(torch.tensor(numeric))
-                i += len(numeric)
-                offsets.append(i)
-            offsets.pop()
-            text_tokens = torch.cat(text_tokens)
-            offsets = torch.tensor(offsets)
+        try:
+            self.model.eval()
+            with torch.no_grad():
+                offsets = [0]  # starting index
+                i = 0
+                text_tokens = []
+                for text in texts:
+                    numeric = self.text_to_numerical(text)
+                    text_tokens.append(torch.tensor(numeric))
+                    i += len(numeric)
+                    offsets.append(i)
+                offsets.pop()
+                text_tokens = torch.cat(text_tokens)
+                offsets = torch.tensor(offsets)
 
-            output = torch.flatten(self.model(text_tokens, offsets))
+                output = torch.flatten(self.model(text_tokens, offsets))
 
-            positive_threshold = 0.7
-            negative_threshold = 0.3
-            sentiment_labels = []
-            for probability in output:
-                if probability >= positive_threshold:
-                    sentiment_labels.append("Positive")
-                elif probability <= negative_threshold:
-                    sentiment_labels.append("Negative")
-                else:
-                    sentiment_labels.append("Neutral")
-            return sentiment_labels
-
+                positive_threshold = 0.7
+                negative_threshold = 0.3
+                sentiment_labels = []
+                for probability in output:
+                    if probability >= positive_threshold:
+                        sentiment_labels.append("Positive")
+                    elif probability <= negative_threshold:
+                        sentiment_labels.append("Negative")
+                    else:
+                        sentiment_labels.append("Neutral")
+                return sentiment_labels
+        except Exception as e:
+            print(f"Error occurred during sentiment analysis: {e}")
+            raise
+        
     # Takes a dataloader as input
     def train_from_dataloader(self, dataloader, epochs=2000):
-        for batch in dataloader:
-            labels = batch[0].to(self.data_type)
-            offsets = [0]  # starting index
-            i = 0
-            text_tokens = []
-            for text in batch[1]:
-                numeric = self.text_to_numerical(text)
-                text_tokens.append(torch.tensor(numeric))
-                i += len(numeric)
-                offsets.append(i)
-            offsets.pop()
-            text_tokens = torch.cat(text_tokens)
-            offsets = torch.tensor(offsets)
-            self.train_from_tensor(labels, text_tokens, offsets, epochs)
+        try:
+            for batch in dataloader:
+                labels = batch[0].to(self.data_type)
+                offsets = [0]  # starting index
+                i = 0
+                text_tokens = []
+                for text in batch[1]:
+                    numeric = self.text_to_numerical(text)
+                    text_tokens.append(torch.tensor(numeric))
+                    i += len(numeric)
+                    offsets.append(i)
+                offsets.pop()
+                text_tokens = torch.cat(text_tokens)
+                offsets = torch.tensor(offsets)
+                self.train_from_tensor(labels, text_tokens, offsets, epochs)
+        except Exception as e:
+            print(f"Error during training from dataloader: {e}")
 
     # Takes tensors as input
     def train_from_tensor(self, labels, text_tokens, offsets, epochs=2000):
-        self.model.train()
-        for epoch in range(epochs):
-            self.optimizer.zero_grad()
-            predictions = self.model(text_tokens, offsets)
-            predictions = torch.flatten(predictions)
-            loss = self.loss_function(predictions, labels)
-            loss.backward()
-            self.optimizer.step()
+        try:
+            self.model.train()
+            for epoch in range(epochs):
+                self.optimizer.zero_grad()
+                predictions = self.model(text_tokens, offsets)
+                predictions = torch.flatten(predictions)
+                loss = self.loss_function(predictions, labels)
+                loss.backward()
+                self.optimizer.step()
+        except Exception as e:
+            print(f"Error during training from tensor: {e}")
 
 
 # FIXME(Dalton): FIX LABEL/DATA ENTRIES FOR JSON AND TXT
-def load_dataset(dataset_path, file_format: str):
+def load_dataset(dataset_path, file_format: str, delimiter: str): # Added delimiter in the function parameter for .txt
     """Loads a dataset from a given path. Accepts CSV, JSON, and TXT formats."""
     dataset = []
     match file_format:
@@ -277,11 +303,14 @@ def load_dataset(dataset_path, file_format: str):
                 # Assuming each item represents a sample
                 for item in json_data:
                     # Assuming the text is stored under the key 'text'
-                    dataset.append(item['text'].strip())
+                    dataset.append(item['label'], item['text'].strip())
         case 'txt':
-            with open(dataset_path, 'r', encoding='utf-8') as file:
-                for line in file:
-                    dataset.append(line.strip())
+           with open(dataset_path, 'r', encoding='utf-8') as file:
+            for line in file:
+                parts = line.strip().split(delimiter)
+                label = int(parts[0])
+                text = delimiter.join(parts[1:]).strip('"')  # Remove double quotes around text if present
+                dataset.append((label, text))
         case _:
             raise ValueError("Unsupported dataset format. Supported formats: 'csv', 'json', 'txt'")
 
