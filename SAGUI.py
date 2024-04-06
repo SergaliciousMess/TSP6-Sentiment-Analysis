@@ -12,11 +12,15 @@ class SAGUI():
         root.geometry('900x700')
         root.title('Sentiment Analysis')
 
-        intro_frame = tk.Frame(root)
-        create_model_frame = tk.Frame(root)
+        container = tk.Frame(root)
+        container.pack()
+
+        intro_frame = tk.Frame(container)
+        create_model_frame = tk.Frame(container)
 
         for f in (intro_frame, create_model_frame):
             f.grid(row=0,column=0,sticky=tk.N + tk.E + tk.S + tk.W)
+        
 
         #intro frame
         title_label = tk.Label(intro_frame, text='Sentiment Analysis', font=('Arial', 20))
@@ -39,8 +43,8 @@ class SAGUI():
         exit_create_model_button = tk.Button(create_model_frame, text='Back', font = ('Arial', 16), width=20, command=lambda: intro_frame.tkraise())
         exit_create_model_button.pack()
 
-        intro_frame.tkraise()
 
+        intro_frame.tkraise()
         root.mainloop()
 
 SAGUI()
