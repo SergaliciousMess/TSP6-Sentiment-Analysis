@@ -8,9 +8,9 @@ def main():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description='Sentiment Analysis CLI')
     parser.add_argument('--architecture', choices=['standard', '1d', 'deep', 'wide', 'parallel', 'dilated', 'attention'], default='standard', help='Select the CNN architecture (default: standard)')
-    parser.add_argument('--learning-rate', type=float, default=0.001, help='Learning rate for training (default: 0.001)')
+    parser.add_argument('--learning-rate', type=float, default=0.1, help='Learning rate for training (default: 0.1)')
     parser.add_argument('--batch-size', type=int, default=64, help='Batch size for training (default: 64)')
-    parser.add_argument('--epochs', type=int, default=10, help='Number of epochs for training (default: 10)')
+    parser.add_argument('--epochs', type=int, default=2000, help='Number of epochs for training (default: 2000)')
     parser.add_argument('--dataset', type=str, required=True, help='Path to the dataset file')
     parser.add_argument('--positive-threshold', type=float, default=0.7, help='Threshold for classifying as Positive (default: 0.7)')
     parser.add_argument('--negative-threshold', type=float, default=0.3, help='Threshold for classifying as Negative (default: 0.3)')
