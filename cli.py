@@ -12,6 +12,10 @@ class cli:
         parser.add_argument('--dataset', type=str, required=True, help='Path to the dataset file')
         parser.add_argument('--positive-threshold', type=float, default=0.7, help='Threshold for classifying as Positive (default: 0.7)')
         parser.add_argument('--negative-threshold', type=float, default=0.3, help='Threshold for classifying as Negative (default: 0.3)')
+        
+        # Check if the dataset file format is 'txt', then add the '--delimiter' argument
+        if args.dataset.endswith('.txt'):
+            parser.add_argument('--delimiter', type=str, default=',', help='Delimiter used in the TXT dataset file (default: comma)')
 
         args = parser.parse_args()
     
