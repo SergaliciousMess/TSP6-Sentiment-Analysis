@@ -26,6 +26,7 @@ Description: an edited verison of primary Python file for the sentiment analysis
 
 import csv
 import json
+from enum import Enum
 
 import spacy
 import torch
@@ -50,18 +51,32 @@ def ground_truth_label_for_text(text: tuple):
     return text[0]
 
 
+class Architecture(Enum):
+    """All acceptable architectures for CNNModel."""
+    STANDARD = "standard"
+    ONE_DIMENSION = "1d"
+    WIDE = "wide"
+    DEEP = "deep"
+    DILATED = "dilated"
+    PARALLEL = "parallel"
+
+    def __str__(self):
+        # To work better with argparse
+        return self.value
+
+
 class CNNModel(nn.Module):
-    def __init__(self, architecture: str = 'standard', input_size: int = 64, output_size: int = 1):
         super(CNNModel, self).__init__()
+    def __init__(self, architecture: Architecture = Architecture.STANDARD, input_size: int = 64, output_size: int = 1):
         self.architecture = architecture
         # Define the CNN architecture based on the chosen type
         match architecture:
-            case 'standard':
+            case Architecture.STANDARD:
                 self.model = nn.Sequential(
                     nn.Linear(input_size, output_size),
                     nn.Sigmoid()
                 )
-            case '1d':
+            case Architecture.ONE_DIMENSION:
                 self.model = nn.Sequential(
                     nn.Conv1d(in_channels=input_size, out_channels=64, kernel_size=3),
                     nn.MaxPool1d(kernel_size=2),
@@ -69,7 +84,7 @@ class CNNModel(nn.Module):
                     nn.Linear(64 * ((input_size - 2) // 2), output_size),
                     nn.Sigmoid()
                 )
-            case 'wide':
+            case Architecture.WIDE:
                 self.model = nn.Sequential(
                     nn.Conv1d(in_channels=input_size, out_channels=128, kernel_size=5),  # Increase out_channels for wider architecture
                     nn.MaxPool1d(kernel_size=2),
@@ -77,7 +92,7 @@ class CNNModel(nn.Module):
                     nn.Linear(128 * ((input_size - 4) // 2), output_size),  # Adjust input_size calculation for wider architecture
                     nn.Sigmoid()
                 )
-            case 'deep':
+            case Architecture.DEEP:
                 self.model = nn.Sequential(
                     nn.Conv1d(in_channels=input_size, out_channels=64, kernel_size=3),
                     nn.ReLU(),
@@ -88,7 +103,7 @@ class CNNModel(nn.Module):
                     nn.Linear(64 * ((input_size - 2) // 2), output_size),
                     nn.Sigmoid()
                 )
-            case 'dilated':
+            case Architecture.DILATED:
                 self.model = nn.Sequential(
                     nn.Conv1d(in_channels=input_size, out_channels=64, kernel_size=3, dilation=2),
                     nn.MaxPool1d(kernel_size=2),
@@ -96,7 +111,7 @@ class CNNModel(nn.Module):
                     nn.Linear(64 * ((input_size - 4) // 2), output_size),
                     nn.Sigmoid()
                 )
-            case 'parallel':
+            case Architecture.PARALLEL:
                 self.conv1 = nn.Conv1d(in_channels=input_size, out_channels=32, kernel_size=3)
                 self.conv2 = nn.Conv1d(in_channels=input_size, out_channels=32, kernel_size=5)
                 self.conv3 = nn.Conv1d(in_channels=input_size, out_channels=32, kernel_size=7)
@@ -104,33 +119,30 @@ class CNNModel(nn.Module):
                 self.fc = nn.Linear(32 * ((input_size - 6) // 2), output_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        if hasattr(self, 'model'):
+        if self.architecture != Architecture.PARALLEL:
             return self.model(x)
 
-        if hasattr(self, 'conv1'):
-            # Apply convolutional operations followed by ReLU activation
-            x1 = nn.functional.relu(self.conv1(x))
-            x2 = nn.functional.relu(self.conv2(x))
-            x3 = nn.functional.relu(self.conv3(x))
+        # Apply convolutional operations followed by ReLU activation
+        x1 = nn.functional.relu(self.conv1(x))
+        x2 = nn.functional.relu(self.conv2(x))
+        x3 = nn.functional.relu(self.conv3(x))
 
-            # Apply max pooling to reduce spatial dimensions
-            x1 = self.pool(x1)
-            x2 = self.pool(x2)
-            x3 = self.pool(x3)
+        # Apply max pooling to reduce spatial dimensions
+        x1 = self.pool(x1)
+        x2 = self.pool(x2)
+        x3 = self.pool(x3)
 
-            # Concatenate the pooled feature maps along the channel dimension
-            x = torch.cat((x1, x2, x3), dim=1)
+        # Concatenate the pooled feature maps along the channel dimension
+        x = torch.cat((x1, x2, x3), dim=1)
 
-            # Flatten the concatenated feature maps
-            x = x.view(x.size(0), -1)
+        # Flatten the concatenated feature maps
+        x = x.view(x.size(0), -1)
 
-            # Apply fully connected layer to the flattened feature maps
-            x = self.fc(x)
+        # Apply fully connected layer to the flattened feature maps
+        x = self.fc(x)
 
-            # Apply sigmoid activation function to the output
-            return torch.sigmoid(x)
-
-        return self.model(x)
+        # Apply sigmoid activation function to the output
+        return torch.sigmoid(x)
 
 
 class TextClassifier(nn.Module):
@@ -147,7 +159,7 @@ class SentimentAnalysis():
     def __init__(
         self,
         dataloader,
-        model_type: str = 'standard',
+        model_type: Architecture = Architecture.STANDARD,
         embedding_width: int = 64,
         learning_rate: float = 0.1,
         optimizer: torch.optim.Optimizer = torch.optim.Adam,
