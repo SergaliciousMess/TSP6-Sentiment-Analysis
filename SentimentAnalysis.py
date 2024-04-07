@@ -30,20 +30,9 @@ from enum import Enum
 
 import spacy
 import torch
-from sklearn.metrics import (accuracy_score, f1_score, precision_score,
-                             recall_score)
-from sklearn.model_selection import train_test_split
 from torch import nn
 from torch.utils.data import DataLoader
-from torchtext.data.functional import to_map_style_dataset
-from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
-
-# device- desired device for computations
-# data_type- desired number format
-# optimizer- lambda function for desired pytorch optimization algorithm
-# learning_rate- desired learning rate for optimization
-# loss_function- lambda function for desired pytorch loss calculation algorithm
 
 
 def ground_truth_label_for_text(text: tuple):
@@ -158,20 +147,42 @@ class TextClassifier(nn.Module):
 class SentimentAnalysis():
     def __init__(
         self,
-        dataloader,
+        dataloader: DataLoader,
         model_type: Architecture = Architecture.STANDARD,
         embedding_width: int = 64,
         learning_rate: float = 0.1,
         optimizer: torch.optim.Optimizer = torch.optim.Adam,
-        loss_function = nn.CrossEntropyLoss(),
-        data_type = torch.float32,
+        loss_function=nn.CrossEntropyLoss(),
+        data_type=torch.float32,
         device: str = "cpu"
     ):
+        """Initialize necessary SentimentAnalysis components.
+
+        Args:
+            * dataloader
+            * model_type:
+                Desired CNNModel architecture (default: `Architecture.STANDARD`).
+            * embedding_width:
+                (default: `64`)
+            * learning_rate:
+                Desired learning rate for optimization (default: `0.1`).
+            * optimizer:
+                Lambda function for desired PyTorch optimization
+                algorithm (default: `torch.optim.Adam`).
+            * loss_function:
+                Lambda function for desired PyTorch loss calculation
+                algorithm (default: `nn.CrossEntropyLoss()`).
+            * data_type:
+                Desired number format (default: `torch.float32`).
+            * device:
+                Desired device for computations (default: `"cpu"`).
+        """
+
         try:
             # Initialize nlp and build vocab
             torch.set_default_dtype(data_type)
             torch.set_default_device(device=device)
-            self.nlp = spacy.load('en_core_web_sm')
+            self.nlp = spacy.load("en_core_web_sm")
             self.vocab = self.build_vocab(dataloader)
 
             # Construct model based off of parameters
@@ -180,7 +191,7 @@ class SentimentAnalysis():
             network = CNNModel(architecture=model_type, input_size=embedding_width, output_size=1)
             network.to(data_type)
             network.to(device=device)
-            self.model = TextClassifier(bag = bag, network = network)
+            self.model = TextClassifier(bag=bag, network=network)
 
             # Store some important variables
             self.data_type = data_type
@@ -195,7 +206,7 @@ class SentimentAnalysis():
             print(f"Error occurred during initialization: {e}")
             raise
 
-    def tokenize(self, text : str) -> list[str]:
+    def tokenize(self, text: str) -> list[str]:
         # Tokenization logic using spaCy
         try:
             doc = self.nlp(text)
@@ -205,13 +216,13 @@ class SentimentAnalysis():
             print(f"Error occurred during tokenization: {e}")
             raise
 
-    def yield_tokens(self, dataloader):
+    def yield_tokens(self, dataloader: DataLoader):
         for batch in dataloader:
             for text in batch[1]:
                 yield self.tokenize(text)
 
-    def build_vocab(self, dataloader):
-        # Build vocabulary from the tokenized data
+    def build_vocab(self, dataloader: DataLoader):
+        """Build vocabulary from the tokenized data"""
         try:
             vocab = build_vocab_from_iterator(self.yield_tokens(dataloader), specials=["<unk>"])
             vocab.set_default_index(vocab["<unk>"])
@@ -229,7 +240,7 @@ class SentimentAnalysis():
             print(f"Error occurred during text to numerical conversion: {e}")
             raise
 
-    def analyze(self, texts: list):
+    def analyze(self, texts: list[str]):
         try:
             self.model.eval()
             with torch.no_grad():
@@ -261,9 +272,9 @@ class SentimentAnalysis():
         except Exception as e:
             print(f"Error occurred during sentiment analysis: {e}")
             raise
-        
+
     # Takes a dataloader as input
-    def train_from_dataloader(self, dataloader, epochs=2000):
+    def train_from_dataloader(self, dataloader: DataLoader, epochs=2000):
         try:
             for batch in dataloader:
                 labels = batch[0].to(self.data_type)
@@ -302,27 +313,27 @@ def load_dataset(dataset_path, file_format: str, delimiter: str = ","): # Added 
     """Loads a dataset from a given path. Accepts CSV, JSON, and TXT formats."""
     dataset = []
     match file_format:
-        case 'csv':
-            with open(dataset_path, 'r', encoding='utf-8') as file:
+        case "csv":
+            with open(dataset_path, "r", encoding="utf-8") as file:
                 csv_reader = csv.reader(file)
                 # Assuming each row represents a sample
                 for row in csv_reader:
                     # Assuming the text is in the second column
                     dataset.append((int(row[0]), row[1].strip()))
-        case 'json':
-            with open(dataset_path, 'r', encoding='utf-8') as file:
+        case "json":
+            with open(dataset_path, "r", encoding="utf-8") as file:
                 json_data = json.load(file)
                 # Assuming each item represents a sample
                 for item in json_data:
-                    # Assuming the text is stored under the key 'text'
                     dataset.append(item['label'], item['text'].strip())
-        case 'txt':
-           with open(dataset_path, 'r', encoding='utf-8') as file:
-            for line in file:
-                parts = line.strip().split(delimiter)
-                label = int(parts[0])
-                text = delimiter.join(parts[1:]).strip('"')  # Remove double quotes around text if present
-                dataset.append((label, text))
+                    # Assuming the text is stored under the key "text"
+        case "txt":
+            with open(dataset_path, "r", encoding="utf-8") as file:
+                for line in file:
+                    parts = line.strip().split(delimiter)
+                    label = int(parts[0])
+                    text = delimiter.join(parts[1:]).strip('"')  # Remove double quotes around text if present
+                    dataset.append((label, text))
         case _:
             raise ValueError("Unsupported dataset format. Supported formats: 'csv', 'json', 'txt'")
 
