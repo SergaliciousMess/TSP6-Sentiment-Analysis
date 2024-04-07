@@ -325,8 +325,8 @@ def load_dataset(dataset_path, file_format: str, delimiter: str = ","): # Added 
                 json_data = json.load(file)
                 # Assuming each item represents a sample
                 for item in json_data:
-                    dataset.append(item['label'], item['text'].strip())
                     # Assuming the text is stored under the key "text"
+                    dataset.append((item["label"], item["text"].strip()))
         case "txt":
             with open(dataset_path, "r", encoding="utf-8") as file:
                 for line in file:
