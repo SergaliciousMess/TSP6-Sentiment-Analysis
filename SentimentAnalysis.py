@@ -55,8 +55,8 @@ class Architecture(Enum):
 
 
 class CNNModel(nn.Module):
-        super(CNNModel, self).__init__()
     def __init__(self, architecture: Architecture = Architecture.STANDARD, input_size: int = 64, output_size: int = 1):
+        super(CNNModel, self).__init__()
         self.architecture = architecture
         # Define the CNN architecture based on the chosen type
         match architecture:
