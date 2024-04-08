@@ -18,8 +18,10 @@ class SAGUI():
         self.intro_frame = tk.Frame(container)
         self.create_model_frame = tk.Frame(container)
         self.model_loaded_frame = tk.Frame(container)
+        self.train_model_frame = tk.Frame(container)
+        self.evaluate_model_frame = tk.Frame(container)
 
-        for f in (self.intro_frame, self.create_model_frame, self.model_loaded_frame):
+        for f in (self.intro_frame, self.create_model_frame, self.model_loaded_frame, self.train_model_frame, self.evaluate_model_frame):
             f.grid(row=0,column=0,sticky=tk.N + tk.E + tk.S + tk.W)
         
 
@@ -32,7 +34,7 @@ class SAGUI():
         intro_button_frame.columnconfigure(0, weight=1)
         intro_button_frame.columnconfigure(1, weight=1)
 
-        create_model_button = tk.Button(intro_button_frame, text="Create new model", font = ('Arial', 16), width=20, command=lambda: self.create_model_frame.tkraise())
+        create_model_button = tk.Button(intro_button_frame, text="Create new model", font = ('Arial', 16), width=20, command = lambda: self.create_model_frame.tkraise())
         create_model_button.grid(row=0, column=0, padx=30, sticky=tk.E+tk.W)
 
         load_model_button = tk.Button(intro_button_frame, text="Load model", font = ('Arial', 16), width=20, command = lambda: messagebox.showerror(title="Error", message="Not implemented"))
@@ -41,7 +43,7 @@ class SAGUI():
         intro_button_frame.pack(pady=50)
 
         #create model frame
-        exit_create_model_button = tk.Button(self.create_model_frame, text='Back', font = ('Arial', 16), width=20, command=lambda: self.intro_frame.tkraise())
+        exit_create_model_button = tk.Button(self.create_model_frame, text='Back', font = ('Arial', 16), width=20, command = lambda: self.intro_frame.tkraise())
         exit_create_model_button.pack(pady=30)
 
         parameters = tk.Frame(self.create_model_frame)
@@ -76,7 +78,7 @@ class SAGUI():
 
         parameters.pack()
 
-        create_model_button = tk.Button(self.create_model_frame, text='Create Model', font = ('Arial', 16), width=20, command= self.create_model)
+        create_model_button = tk.Button(self.create_model_frame, text='Create Model', font = ('Arial', 16), width=20, command = self.create_model)
         create_model_button.pack(pady=30)
 
         #model loaded frame
@@ -87,16 +89,53 @@ class SAGUI():
         loaded_button_frame.columnconfigure(0, weight=1)
         loaded_button_frame.columnconfigure(1, weight=1)
 
-        evaluate_button = tk.Button(loaded_button_frame, text="Evaluate", font = ('Arial', 16), width=20)
+        evaluate_button = tk.Button(loaded_button_frame, text="Evaluate", font = ('Arial', 16), width=20, command = lambda: self.evaluate_model_frame.tkraise())
         evaluate_button.grid(row=0,column=0,padx=20,pady=10)
 
-        train_button = tk.Button(loaded_button_frame, text="Train", font = ('Arial', 16), width=20)
-        train_button.grid(row=0,column=1,padx=20,pady=10)
+        train_model_button = tk.Button(loaded_button_frame, text="Train", font = ('Arial', 16), width=20, command = lambda: self.train_model_frame.tkraise())
+        train_model_button.grid(row=0,column=1,padx=20,pady=10)
 
-        back_button = tk.Button(loaded_button_frame, text="Back", font = ('Arial', 16), width=20, command= self.clear_model)
-        back_button.grid(row=1,column=0,padx=20,pady=10)
+        unload_model_button = tk.Button(loaded_button_frame, text="Back", font = ('Arial', 16), width=20, command = self.clear_model)
+        unload_model_button.grid(row=1,column=0,padx=20,pady=10)
+
+        save_button = tk.Button(loaded_button_frame, text="Save", font = ('Arial', 16), width=20, command = lambda: messagebox.showerror(title="Error", message="Not implemented"))
+        save_button.grid(row=1,column=1,padx=20,pady=10)
 
         loaded_button_frame.pack()
+
+        #train model frame
+        exit_training_button = tk.Button(self.train_model_frame, text='Back', font = ('Arial', 16), width=20, command = lambda: self.model_loaded_frame.tkraise())
+        exit_training_button.pack(pady=30)
+
+        train_model_input_frame = tk.Frame(self.train_model_frame)
+        train_model_input_frame.columnconfigure(0, weight=1)
+        train_model_input_frame.columnconfigure(1, weight=1)
+
+        epochs_label = tk.Label(train_model_input_frame, text="Epochs:", font=('Arial', 20))
+        epochs_label.grid(row=0,column=0)
+
+        self.epochs_entry = tk.Entry(train_model_input_frame, text="epochs")
+        self.epochs_entry.insert(0, "2000")
+        self.epochs_entry.grid(row=0,column=1)
+
+        train_model_input_frame.pack()
+
+        start_training_button = tk.Button(self.train_model_frame, text ="Train", font = ('Arial', 16), width=20, command = self.train)
+        start_training_button.pack()
+        
+
+        #evaluate model frame
+        exit_evaluation_button = tk.Button(self.evaluate_model_frame, text='Back', font = ('Arial', 16), width=20, command = lambda: self.model_loaded_frame.tkraise())
+        exit_evaluation_button.pack(pady=30)
+
+        self.analyze_textbox = tk.Text(self.evaluate_model_frame)
+        self.analyze_textbox.pack()
+
+        analyze_button = tk.Button(self.evaluate_model_frame, text='Analyze', font = ('Arial', 16), width=20, command = self.evaluate)
+        analyze_button.pack(pady=30)
+
+        self.prediction_label = tk.Label(self.evaluate_model_frame, text='Prediction: ', font = ('Arial', 16))
+        self.prediction_label.pack()
 
         self.intro_frame.tkraise()
         root.mainloop()
@@ -106,6 +145,7 @@ class SAGUI():
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
         batch_size = int(self.batch_size_entry.get())
         dataloader = DataLoader(dataset, generator=torch.Generator(device=device), batch_size=batch_size)
+        self.dataloader = dataloader
 
         lr = float(self.learning_rate_entry.get())
         embedding_dim = int(self.embedding_dim_entry.get())
@@ -114,6 +154,15 @@ class SAGUI():
 
     def clear_model(self):
         self.model = None
+        self.dataloader = None
         self.intro_frame.tkraise()
+
+    def evaluate(self):
+        prediction = self.model.analyze([self.analyze_textbox.get("1.0", "end-1c")])[0]
+        self.prediction_label.config(text="Prediction: " + prediction)
+    
+    def train(self):
+        self.model.train_from_dataloader(self.dataloader, epochs=int(self.epochs_entry.get()))
+
 
 SAGUI()
