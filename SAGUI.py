@@ -141,16 +141,35 @@ class SAGUI():
         root.mainloop()
 
     def create_model(self):
-        dataset = SentimentAnalysis.load_dataset(self.data_entry.get(), "csv")
+        try:
+            dataset = SentimentAnalysis.load_dataset(self.data_entry.get(), "csv")
+        except:
+            messagebox.showerror(title="Invalid argument", message="Dataset could not be loaded. Name of file might be wrong.")
+            return
+
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
+
         batch_size = int(self.batch_size_entry.get())
+        if batch_size <= 0:
+            messagebox.showerror(title="Invalid argument", message="Batch size must be greater than 0.")
+            return
         dataloader = DataLoader(dataset, generator=torch.Generator(device=device), batch_size=batch_size)
         self.dataloader = dataloader
 
         lr = float(self.learning_rate_entry.get())
+        if lr <= 0:
+            messagebox.showerror(title="Invalid argument", message="Learning rate must be greater than 0.")
+            return
         embedding_dim = int(self.embedding_dim_entry.get())
-        self.model = SentimentAnalysis.SentimentAnalysis(dataloader, embedding_width=embedding_dim, learning_rate=lr, device=device)
-        self.model_loaded_frame.tkraise()
+
+        if embedding_dim <= 0:
+            messagebox.showerror(title="Invalid argument", message="Embedding dimension must be greater than 0.")
+            return
+        try:
+            self.model = SentimentAnalysis.SentimentAnalysis(dataloader, embedding_width=embedding_dim, learning_rate=lr, device=device)
+            self.model_loaded_frame.tkraise()
+        except:
+            messagebox.showerror(title="Error", message="Model could not be created.")
 
     def clear_model(self):
         self.model = None
@@ -162,7 +181,11 @@ class SAGUI():
         self.prediction_label.config(text="Prediction: " + prediction)
     
     def train(self):
-        self.model.train_from_dataloader(self.dataloader, epochs=int(self.epochs_entry.get()))
+        e = int(self.epochs_entry.get())
+        if e <= 0:
+            messagebox.showerror(title="Invalid argument", message="Epochs must be greater than zero.")
+            return
+        self.model.train_from_dataloader(self.dataloader, epochs=e)
 
 
 SAGUI()
