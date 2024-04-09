@@ -149,22 +149,36 @@ class SAGUI():
 
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-        batch_size = int(self.batch_size_entry.get())
+        try:
+            batch_size = int(self.batch_size_entry.get())
+        except:
+            messagebox.showerror(title="Invalid argument", message="Error in batch size argument")
+            return
         if batch_size <= 0:
             messagebox.showerror(title="Invalid argument", message="Batch size must be greater than 0.")
             return
+        
         dataloader = DataLoader(dataset, generator=torch.Generator(device=device), batch_size=batch_size)
         self.dataloader = dataloader
 
-        lr = float(self.learning_rate_entry.get())
+        try:
+            lr = float(self.learning_rate_entry.get())
+        except:
+            messagebox.showerror(title="Invalid argument", message="Error in learning rate argument")
+            return
         if lr <= 0:
             messagebox.showerror(title="Invalid argument", message="Learning rate must be greater than 0.")
             return
-        embedding_dim = int(self.embedding_dim_entry.get())
-
+        
+        try:
+            embedding_dim = int(self.embedding_dim_entry.get())
+        except:
+            messagebox.showerror(title="Invalid argument", message="Error in embedding dimension argument")
+            return
         if embedding_dim <= 0:
             messagebox.showerror(title="Invalid argument", message="Embedding dimension must be greater than 0.")
             return
+        
         try:
             self.model = SentimentAnalysis.SentimentAnalysis(dataloader, embedding_width=embedding_dim, learning_rate=lr, device=device)
             self.model_loaded_frame.tkraise()
