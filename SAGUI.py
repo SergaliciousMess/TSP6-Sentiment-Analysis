@@ -121,8 +121,7 @@ class SAGUI():
         train_model_input_frame.pack()
 
         start_training_button = tk.Button(self.train_model_frame, text ="Train", font = ('Arial', 16), width=20, command = self.train)
-        start_training_button.pack()
-        
+        start_training_button.pack(pady=30)
 
         #evaluate model frame
         exit_evaluation_button = tk.Button(self.evaluate_model_frame, text='Back', font = ('Arial', 16), width=20, command = lambda: self.model_loaded_frame.tkraise())
@@ -193,13 +192,20 @@ class SAGUI():
     def evaluate(self):
         prediction = self.model.analyze([self.analyze_textbox.get("1.0", "end-1c")])[0]
         self.prediction_label.config(text="Prediction: " + prediction)
-    
+
     def train(self):
         e = int(self.epochs_entry.get())
         if e <= 0:
             messagebox.showerror(title="Invalid argument", message="Epochs must be greater than zero.")
             return
+        
+        if e >= 3000:
+            response = messagebox.askquestion("Warning", "Large values for epochs may cause program to become temporarily unresponsive. Do you wish to continue?")
+            if response == "no":
+                return
+            
+        
         self.model.train_from_dataloader(self.dataloader, epochs=e)
-
+        messagebox.showinfo("Training complete","Training complete")
 
 SAGUI()
