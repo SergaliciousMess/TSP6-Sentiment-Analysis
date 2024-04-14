@@ -130,7 +130,7 @@ class SAGUI():
         self.analyze_textbox = tk.Text(self.evaluate_model_frame)
         self.analyze_textbox.pack()
 
-        analyze_button = tk.Button(self.evaluate_model_frame, text='Analyze', font = ('Arial', 16), width=20, command = self.evaluate)
+        analyze_button = tk.Button(self.evaluate_model_frame, text='Analyze', font = ('Arial', 16), width=20, command = self.analyze_message)
         analyze_button.pack(pady=30)
 
         self.prediction_label = tk.Label(self.evaluate_model_frame, text='Prediction: ', font = ('Arial', 16))
@@ -189,7 +189,7 @@ class SAGUI():
         self.dataloader = None
         self.intro_frame.tkraise()
 
-    def evaluate(self):
+    def analyze_message(self):
         prediction = self.model.analyze([self.analyze_textbox.get("1.0", "end-1c")])[0]
         self.prediction_label.config(text="Prediction: " + prediction)
 

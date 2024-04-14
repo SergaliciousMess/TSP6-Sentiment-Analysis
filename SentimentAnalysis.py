@@ -239,36 +239,46 @@ class SentimentAnalysis():
         except Exception as e:
             print(f"Error occurred during text to numerical conversion: {e}")
             raise
+    
+    def text_to_tensor_offsets(self, texts: list[str]):
+        offsets = [0]  # starting index
+        i = 0
+        text_tokens = []
+        for text in texts:
+            numeric = self.text_to_numerical(text)
+            length = len(numeric)
+            if length > 0:
+                text_tokens.append(torch.tensor(numeric))
+                i += length
+            else:
+                text_tokens.append(torch.tensor([0]))
+                i += 1
+            offsets.append(i)
+        
+        offsets.pop()
+        text_tokens = torch.cat(text_tokens)
+        offsets = torch.tensor(offsets,dtype=torch.int32)
+        return (text_tokens, offsets)
 
     def analyze(self, texts: list[str]):
         try:
             self.model.eval()
-            with torch.no_grad():
-                offsets = [0]  # starting index
-                i = 0
-                text_tokens = []
-                for text in texts:
-                    numeric = self.text_to_numerical(text)
-                    text_tokens.append(torch.tensor(numeric))
-                    i += len(numeric)
-                    offsets.append(i)
-                offsets.pop()
-                text_tokens = torch.cat(text_tokens)
-                offsets = torch.tensor(offsets)
 
-                output = torch.flatten(self.model(text_tokens, offsets))
+            tokens_offsets = self.text_to_tensor_offsets(texts)
 
-                positive_threshold = 0.7
-                negative_threshold = 0.3
-                sentiment_labels = []
-                for probability in output:
-                    if probability >= positive_threshold:
-                        sentiment_labels.append("Positive")
-                    elif probability <= negative_threshold:
-                        sentiment_labels.append("Negative")
-                    else:
-                        sentiment_labels.append("Neutral")
-                return sentiment_labels
+            output = torch.flatten(self.model(tokens_offsets[0], tokens_offsets[1]))
+
+            positive_threshold = 0.7
+            negative_threshold = 0.3
+            sentiment_labels = []
+            for probability in output:
+                if probability >= positive_threshold:
+                    sentiment_labels.append("Positive")
+                elif probability <= negative_threshold:
+                    sentiment_labels.append("Negative")
+                else:
+                    sentiment_labels.append("Neutral")
+            return sentiment_labels
         except Exception as e:
             print(f"Error occurred during sentiment analysis: {e}")
             raise
@@ -278,18 +288,9 @@ class SentimentAnalysis():
         try:
             for batch in dataloader:
                 labels = batch[0].to(self.data_type)
-                offsets = [0]  # starting index
-                i = 0
-                text_tokens = []
-                for text in batch[1]:
-                    numeric = self.text_to_numerical(text)
-                    text_tokens.append(torch.tensor(numeric))
-                    i += len(numeric)
-                    offsets.append(i)
-                offsets.pop()
-                text_tokens = torch.cat(text_tokens)
-                offsets = torch.tensor(offsets)
-                self.train_from_tensor(labels, text_tokens, offsets, epochs)
+                tokens_offsets = self.text_to_tensor_offsets(batch[1])
+
+                self.train_from_tensor(labels, tokens_offsets[0], tokens_offsets[1], epochs)
         except Exception as e:
             print(f"Error during training from dataloader: {e}")
 
