@@ -66,14 +66,14 @@ class SAGUI():
         batch_size_label.grid(row=2,column=0)
 
         self.batch_size_entry = tk.Entry(parameters, text="batch_size")
-        self.batch_size_entry.insert(0, "256")
+        self.batch_size_entry.insert(0, "512")
         self.batch_size_entry.grid(row=2,column=1)
 
         learning_rate_label = tk.Label(parameters, text="Learning Rate:", font=('Arial', 12))
         learning_rate_label.grid(row=3,column=0)
 
         self.learning_rate_entry = tk.Entry(parameters, text="learning_rate")
-        self.learning_rate_entry.insert(0, ".1")
+        self.learning_rate_entry.insert(0, "1")
         self.learning_rate_entry.grid(row=3,column=1)
 
         parameters.pack()
