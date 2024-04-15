@@ -260,16 +260,17 @@ class SentimentAnalysis():
         offsets = torch.tensor(offsets,dtype=torch.int32)
         return (text_tokens, offsets)
 
-    def analyze(self, texts: list[str]):
+    def predictions(self, texts: list[str]):
+        tokens_offsets = self.text_to_tensor_offsets(texts)
+        output = torch.flatten(self.model(tokens_offsets[0], tokens_offsets[1]))
+        return output
+
+    def analyze(self, texts: list[str], positive_threshold = .7, negative_threshold = .3):
         try:
             self.model.eval()
+            
+            output = self.predictions(texts)
 
-            tokens_offsets = self.text_to_tensor_offsets(texts)
-
-            output = torch.flatten(self.model(tokens_offsets[0], tokens_offsets[1]))
-
-            positive_threshold = 0.7
-            negative_threshold = 0.3
             sentiment_labels = []
             for probability in output:
                 if probability >= positive_threshold:
