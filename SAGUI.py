@@ -20,8 +20,10 @@ class SAGUI():
         self.model_loaded_frame = tk.Frame(container)
         self.train_model_frame = tk.Frame(container)
         self.evaluate_model_frame = tk.Frame(container)
+        self.save_model_frame = tk.Frame(container)
+        self.load_model_frame = tk.Frame(container)
 
-        for f in (self.intro_frame, self.create_model_frame, self.model_loaded_frame, self.train_model_frame, self.evaluate_model_frame):
+        for f in (self.intro_frame, self.create_model_frame, self.model_loaded_frame, self.train_model_frame, self.evaluate_model_frame, self.save_model_frame, self.load_model_frame):
             f.grid(row=0,column=0,sticky=tk.N + tk.E + tk.S + tk.W)
         
 
@@ -37,10 +39,31 @@ class SAGUI():
         create_model_button = tk.Button(intro_button_frame, text="Create new model", font = ('Arial', 16), width=20, command = lambda: self.create_model_frame.tkraise())
         create_model_button.grid(row=0, column=0, padx=30, sticky=tk.E+tk.W)
 
-        load_model_button = tk.Button(intro_button_frame, text="Load model", font = ('Arial', 16), width=20, command = lambda: messagebox.showerror(title="Error", message="Not implemented"))
+        load_model_button = tk.Button(intro_button_frame, text="Load model", font = ('Arial', 16), width=20, command = lambda: self.load_model_frame.tkraise())
         load_model_button.grid(row=0, column=1, padx=30, sticky=tk.E+tk.W)
 
         intro_button_frame.pack(pady=50)
+
+        #load model frame
+
+        exit_load_button = tk.Button(self.load_model_frame, text='Back', font = ('Arial', 16), width=20, command = lambda: self.intro_frame.tkraise())
+        exit_load_button.pack(pady=30)
+        
+        load_model_input_frame = tk.Frame(self.load_model_frame)
+        load_model_input_frame.columnconfigure(0, weight=1)
+        load_model_input_frame.columnconfigure(1, weight=1)
+
+        load_label = tk.Label(load_model_input_frame, text="File name:", font=('Arial', 20))
+        load_label.grid(row=0,column=0)
+
+        self.load_filename_entry = tk.Entry(load_model_input_frame, text="file name")
+        self.load_filename_entry.insert(0, "model.pt")
+        self.load_filename_entry.grid(row=0,column=1)
+
+        load_model_input_frame.pack()
+
+        load_button = tk.Button(self.load_model_frame, text ="Load", font = ('Arial', 16), width=20, command = self.load_model)
+        load_button.pack(pady=30)
 
         #create model frame
         exit_create_model_button = tk.Button(self.create_model_frame, text='Back', font = ('Arial', 16), width=20, command = lambda: self.intro_frame.tkraise())
@@ -98,7 +121,7 @@ class SAGUI():
         unload_model_button = tk.Button(loaded_button_frame, text="Back", font = ('Arial', 16), width=20, command = self.clear_model)
         unload_model_button.grid(row=1,column=0,padx=20,pady=10)
 
-        save_button = tk.Button(loaded_button_frame, text="Save", font = ('Arial', 16), width=20, command = lambda: messagebox.showerror(title="Error", message="Not implemented"))
+        save_button = tk.Button(loaded_button_frame, text="Save", font = ('Arial', 16), width=20, command = lambda: self.save_model_frame.tkraise())
         save_button.grid(row=1,column=1,padx=20,pady=10)
 
         loaded_button_frame.pack()
@@ -122,6 +145,27 @@ class SAGUI():
 
         start_training_button = tk.Button(self.train_model_frame, text ="Train", font = ('Arial', 16), width=20, command = self.train)
         start_training_button.pack(pady=30)
+
+        #save model frame
+
+        exit_save_button = tk.Button(self.save_model_frame, text='Back', font = ('Arial', 16), width=20, command = lambda: self.model_loaded_frame.tkraise())
+        exit_save_button.pack(pady=30)
+        
+        save_model_input_frame = tk.Frame(self.save_model_frame)
+        save_model_input_frame.columnconfigure(0, weight=1)
+        save_model_input_frame.columnconfigure(1, weight=1)
+
+        epochs_label = tk.Label(save_model_input_frame, text="File name:", font=('Arial', 20))
+        epochs_label.grid(row=0,column=0)
+
+        self.filename_entry = tk.Entry(save_model_input_frame, text="file name")
+        self.filename_entry.insert(0, "model.pt")
+        self.filename_entry.grid(row=0,column=1)
+
+        save_model_input_frame.pack()
+
+        save_button = tk.Button(self.save_model_frame, text ="Save", font = ('Arial', 16), width=20, command = self.save_model)
+        save_button.pack(pady=30)
 
         #evaluate model frame
         exit_evaluation_button = tk.Button(self.evaluate_model_frame, text='Back', font = ('Arial', 16), width=20, command = lambda: self.model_loaded_frame.tkraise())
@@ -184,6 +228,11 @@ class SAGUI():
         except:
             messagebox.showerror(title="Error", message="Model could not be created.")
 
+    def load_model(self):
+        file = str(self.load_filename_entry.get())
+        self.model = torch.load(file)
+        self.model_loaded_frame.tkraise()
+
     def clear_model(self):
         self.model = None
         self.dataloader = None
@@ -192,6 +241,10 @@ class SAGUI():
     def analyze_message(self):
         prediction = self.model.analyze([self.analyze_textbox.get("1.0", "end-1c")])[0]
         self.prediction_label.config(text="Prediction: " + prediction)
+    
+    def save_model(self):
+        file = str(self.filename_entry.get())
+        self.model.save_to_file(file)
 
     def train(self):
         e = int(self.epochs_entry.get())

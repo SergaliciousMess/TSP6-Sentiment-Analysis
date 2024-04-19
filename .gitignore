@@ -3,3 +3,4 @@
 
 # Ignore the __pycache__ folder
 __pycache__
+model.pt

@@ -308,6 +308,10 @@ class SentimentAnalysis():
                 self.optimizer.step()
         except Exception as e:
             print(f"Error during training from tensor: {e}")
+ 
+    def save_to_file(self, file_name="model.pt"):
+        if file_name is not None:
+            torch.save(self, file_name)
 
 
 # FIXME(SergaliciousMess): FIX LABEL/DATA ENTRIES FOR JSON AND TXT
