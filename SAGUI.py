@@ -53,12 +53,26 @@ class SAGUI():
         load_model_input_frame.columnconfigure(0, weight=1)
         load_model_input_frame.columnconfigure(1, weight=1)
 
-        load_label = tk.Label(load_model_input_frame, text="File name:", font=('Arial', 20))
-        load_label.grid(row=0,column=0)
+        load_dataset_label = tk.Label(load_model_input_frame, text="Dataset:", font=('Arial', 20))
+        load_dataset_label.grid(row=0,column=0)
 
-        self.load_filename_entry = tk.Entry(load_model_input_frame, text="file name")
+        self.load_model_dataset_entry = tk.Entry(load_model_input_frame, text="load model dataset")
+        self.load_model_dataset_entry.insert(0, "test_data.csv")
+        self.load_model_dataset_entry.grid(row=0,column=1)
+
+        load_model_batch_size_label = tk.Label(load_model_input_frame, text="Batch Size:", font=('Arial', 20))
+        load_model_batch_size_label.grid(row=1,column=0)
+
+        self.load_model_batch_size_entry = tk.Entry(load_model_input_frame, text="load model batch size")
+        self.load_model_batch_size_entry.insert(0, "512")
+        self.load_model_batch_size_entry.grid(row=1,column=1)
+
+        load_label = tk.Label(load_model_input_frame, text="File name:", font=('Arial', 20))
+        load_label.grid(row=2,column=0)
+
+        self.load_filename_entry = tk.Entry(load_model_input_frame, text="load file name")
         self.load_filename_entry.insert(0, "model.pt")
-        self.load_filename_entry.grid(row=0,column=1)
+        self.load_filename_entry.grid(row=2,column=1)
 
         load_model_input_frame.pack()
 
@@ -88,9 +102,9 @@ class SAGUI():
         batch_size_label = tk.Label(parameters, text="Batch Size:", font=('Arial', 12))
         batch_size_label.grid(row=2,column=0)
 
-        self.batch_size_entry = tk.Entry(parameters, text="batch_size")
-        self.batch_size_entry.insert(0, "512")
-        self.batch_size_entry.grid(row=2,column=1)
+        self.create_model_batch_size_entry = tk.Entry(parameters, text="batch_size")
+        self.create_model_batch_size_entry.insert(0, "512")
+        self.create_model_batch_size_entry.grid(row=2,column=1)
 
         learning_rate_label = tk.Label(parameters, text="Learning Rate:", font=('Arial', 12))
         learning_rate_label.grid(row=3,column=0)
@@ -158,9 +172,9 @@ class SAGUI():
         epochs_label = tk.Label(save_model_input_frame, text="File name:", font=('Arial', 20))
         epochs_label.grid(row=0,column=0)
 
-        self.filename_entry = tk.Entry(save_model_input_frame, text="file name")
-        self.filename_entry.insert(0, "model.pt")
-        self.filename_entry.grid(row=0,column=1)
+        self.save_filename_entry = tk.Entry(save_model_input_frame, text="save file name")
+        self.save_filename_entry.insert(0, "model.pt")
+        self.save_filename_entry.grid(row=0,column=1)
 
         save_model_input_frame.pack()
 
@@ -193,7 +207,7 @@ class SAGUI():
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
         try:
-            batch_size = int(self.batch_size_entry.get())
+            batch_size = int(self.create_model_batch_size_entry.get())
         except:
             messagebox.showerror(title="Invalid argument", message="Error in batch size argument")
             return
@@ -229,8 +243,33 @@ class SAGUI():
             messagebox.showerror(title="Error", message="Model could not be created.")
 
     def load_model(self):
-        file = str(self.load_filename_entry.get())
-        self.model = torch.load(file)
+        try:
+            dataset = SentimentAnalysis.load_dataset(self.load_model_dataset_entry.get(), "csv")
+        except:
+            messagebox.showerror(title="Invalid argument", message="Dataset could not be loaded. Name of file might be wrong.")
+            return
+        
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        torch.set_default_device(device)
+
+        try:
+            batch_size = int(self.load_model_batch_size_entry.get())
+        except:
+            messagebox.showerror(title="Invalid argument", message="Error in batch size argument")
+            return
+        if batch_size <= 0:
+            messagebox.showerror(title="Invalid argument", message="Batch size must be greater than 0.")
+            return
+        
+        dataloader = DataLoader(dataset, generator=torch.Generator(device=device), batch_size=batch_size)
+        self.dataloader = dataloader
+
+        try:
+            file = str(self.load_filename_entry.get())
+            self.model = torch.load(file)
+        except:
+            messagebox.showerror(title="Error", message="Model could not be loaded. File name might be wrong")
+            return
         self.model_loaded_frame.tkraise()
 
     def clear_model(self):
@@ -243,7 +282,7 @@ class SAGUI():
         self.prediction_label.config(text="Prediction: " + prediction)
     
     def save_model(self):
-        file = str(self.filename_entry.get())
+        file = str(self.save_filename_entry.get())
         self.model.save_to_file(file)
 
     def train(self):
