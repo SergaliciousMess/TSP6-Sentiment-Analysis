@@ -31,7 +31,7 @@ def parse_args():
     parser.add_argument(
         '--batch-size',
         type=int,
-        default=64,
+        default=512,
         help='Batch size for training (default: 64)'
     )
     parser.add_argument(
@@ -84,7 +84,8 @@ def test_accuracy(dataset, batch_size, architecture, learning_rate, epochs, posi
     model = SentimentAnalysis(
         train_dataloader,
         model_type=architecture,
-        learning_rate=learning_rate
+        learning_rate=learning_rate,
+        device=device
     )
 
     # Train the model
